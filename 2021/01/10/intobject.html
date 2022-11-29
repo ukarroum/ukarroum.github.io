@@ -1,0 +1,268 @@
+<p>In this article, we will read and discuss the implementation details of <em>ints</em> in <em>CPython</em>.</p>
+
+<p>Altough using integers in python is fairly easy :</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">a</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="n">b</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="mi">5</span></code></pre></figure>
+
+<p>The implementation file contains more than 5000 code lines.</p>
+
+<p>Since the file contains roughly 116 functions/macros, I’ll probably skip some (most of ?) functions.</p>
+
+<p>Without further ado, let’s dive into the code !</p>
+
+<h3 id="longobjectc">longobject.c</h3>
+
+<p>First we need to find a starting point, we know that all pythons objects are stored in <code class="language-plaintext highlighter-rouge">cpython/Objects</code>.</p>
+
+<p>Unfortunetly, we don’t seem to have an <code class="language-plaintext highlighter-rouge">intobject.c</code> file. That’s because the underlying C object for python integers is <code class="language-plaintext highlighter-rouge">PyLongObject</code>.</p>
+
+<p>The file we’re interessted in is : <code class="language-plaintext highlighter-rouge">longobject.c</code></p>
+
+<p>From now one I will refer to python’s integers implementation both using <em>integers</em> or <em>longs</em>, which is not technically accurate since in <em>C</em> those are different types.</p>
+
+<p>For the rest of this article, we’ll revisit some of the most used operations/functions related to integers.</p>
+
+<h4 id="medium_valuex">MEDIUM_VALUE(x)</h4>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="cm">/* convert a PyLong of size 1, 0 or -1 to an sdigit */</span>
+<span class="cp">#define MEDIUM_VALUE(x) (assert(-1 &lt;= Py_SIZE(x) &amp;&amp; Py_SIZE(x) &lt;= 1),   \
+         Py_SIZE(x) &lt; 0 ? -(sdigit)(x)-&gt;ob_digit[0] :   \
+             (Py_SIZE(x) == 0 ? (sdigit)0 :                             \
+              (sdigit)(x)-&gt;ob_digit[0]))</span></code></pre></figure>
+
+<p>The comment is pretty explanatory, the macro convert a given <em>long</em> to an <em>sdigit</em>. But what’s an sdigit ? Well it depends :</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="cp">#if PYLONG_BITS_IN_DIGIT == 30 </span><span class="cm">/* signed variant of digit */</span><span class="cp">
+</span><span class="k">typedef</span> <span class="kt">int32_t</span> <span class="n">sdigit</span>
+<span class="cp">#elif PYLONG_BITS_IN_DIGIT == 15
+</span><span class="k">typedef</span> <span class="kt">short</span> <span class="n">sdigit</span><span class="p">;</span> <span class="cm">/* signed variant of digit */</span>
+<span class="cp">#else
+#error "PYLONG_BITS_IN_DIGIT should be 15 or 30
+#endif</span></code></pre></figure>
+
+<p>The <code class="language-plaintext highlighter-rouge">PYLONG_BITS_IN_DIGIT</code> is defined either at configure time or in <code class="language-plaintext highlighter-rouge">pyport.h</code>.</p>
+
+<p>We have an assert to protect us from accidently casting a big integer, which is not small enough to fit in an sdigit, to an sdigit, which may result in a loss of information, therefore potentiely issues which can be hard to detect.</p>
+
+<p>Curiously, the assert check that the <em>size</em> of x is bigger than -1, but can be less than 0 ? My guess is that size is unsigned to represent both the size and the sign of the integer, for exemple : <code class="language-plaintext highlighter-rouge">PY_SIZE(-15) = -2</code>.
+This seems to be confirmed with <code class="language-plaintext highlighter-rouge">Py_SIZE(x) &lt; 0 ? -(sdigit)(x)-&gt;ob_digit[0]</code>.</p>
+
+<p><code class="language-plaintext highlighter-rouge">ob_digit</code> looks like an array containing our integer. which can be confirmed in the file <code class="language-plaintext highlighter-rouge">longintrepr.h</code> :</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="k">struct</span> <span class="n">_longobject</span> <span class="p">{</span>
+    <span class="n">PyObject_VAR_HEAD</span>
+    <span class="n">digit</span> <span class="n">ob_digit</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+<span class="p">};</span></code></pre></figure>
+
+<p>One curious fact, that I can’t explain, is the small size of the array (one element ?), maybe it’s somehow changed at runtime.</p>
+
+<h4 id="is_small_intival">IS_SMALL_INT(ival)</h4>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="cp">#define IS_SMALL_INT(ival) (-NSMALLNEGINTS &lt;= (ival) &amp;&amp; (ival) &lt; NSMALLPOSINTS)</span></code></pre></figure>
+
+<p>Pretty straightforward function.</p>
+
+<p><code class="language-plaintext highlighter-rouge">NSMALLPOSINTS</code> and <code class="language-plaintext highlighter-rouge">NSMALLNEGINTS</code> is defined in the <code class="language-plaintext highlighter-rouge">pycore_interp.h</code> file :</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="cm">/* interpreter state */</span>
+
+<span class="cp">#define _PY_NSMALLPOSINTS           257
+#define _PY_NSMALLNEGINTS           5</span></code></pre></figure>
+
+<p>To undesrtand why those 2 magic numbers and where this macro is used, let’s dive into the next function.</p>
+
+<h4 id="static-pyobject--get_small_intsdigit-ival">static PyObject * get_small_int(sdigit ival)</h4>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="k">static</span> <span class="n">PyObject</span> <span class="o">*</span>
+<span class="nf">get_small_int</span><span class="p">(</span><span class="n">sdigit</span> <span class="n">ival</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">assert</span><span class="p">(</span><span class="n">IS_SMALL_INT</span><span class="p">(</span><span class="n">ival</span><span class="p">));</span>
+    <span class="n">PyInterpreterState</span> <span class="o">*</span><span class="n">interp</span> <span class="o">=</span> <span class="n">_PyInterpreterState_GET</span><span class="p">();</span>
+    <span class="n">PyObject</span> <span class="o">*</span><span class="n">v</span> <span class="o">=</span> <span class="p">(</span><span class="n">PyObject</span><span class="o">*</span><span class="p">)</span><span class="n">interp</span><span class="o">-&gt;</span><span class="n">small_ints</span><span class="p">[</span><span class="n">ival</span> <span class="o">+</span> <span class="n">NSMALLNEGINTS</span><span class="p">];</span>
+    <span class="n">Py_INCREF</span><span class="p">(</span><span class="n">v</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">v</span><span class="p">;</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>This function implements what is commonly known as the <em>Flyweight pattern</em>, as explained here : <a href="https://python-patterns.guide/gang-of-four/flyweight/">https://python-patterns.guide/gang-of-four/flyweight/</a>, the flyweight pattern is used in python to create at the initialisation phase all the integers in the range [-5, 256]. At the runtime, whenever you ask for a number in this range, you’ll always get the <em>same</em> number.</p>
+
+<p>Which can be easily checked :</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="mi">20</span> <span class="o">+</span> <span class="mi">30</span> <span class="ow">is</span> <span class="mi">50</span> <span class="c1"># True
+</span><span class="mi">200</span> <span class="o">+</span> <span class="mi">300</span> <span class="ow">is</span> <span class="mi">500</span> <span class="c1"># False</span></code></pre></figure>
+
+<p>Those integers objects are stored in the interpreter state.</p>
+
+<p>According to <a href="https://tenthousandmeters.com/blog/python-behind-the-scenes-1-how-the-cpython-vm-works/">https://tenthousandmeters.com/blog/python-behind-the-scenes-1-how-the-cpython-vm-works/</a> :</p>
+
+<blockquote>
+  <p>An interpreter state is a group of threads along with the data specific to this group. Threads share such things as loaded modules (sys.modules), builtins (builtins.<strong>dict</strong>) and the import system (importlib).</p>
+</blockquote>
+
+<p>Apparently flyweight integers are stored there.</p>
+
+<p>We also use <code class="language-plaintext highlighter-rouge">Py_INCREF</code> to increment the reference count of the returned integer, recall that reference counting is what is used by the CPython garbage collector to detect which objects to free (Well not just that, since reference counting alone doesn’t resolve circular references, but we’ll discuss the <em>gc</em> in more details in future articles).</p>
+
+<h4 id="maybe_small_long">maybe_small_long</h4>
+
+<p>Straitforward function, we check a given integer is small enough to fit into an sdigit, if it’s the case we downcast it to an sdigit using the <code class="language-plaintext highlighter-rouge">MEDIUM_VALUE</code>. After downcasting we check if the integer is in the flyweight range <em>[-5, 257]</em>, if it’s the case we decrement the referece counting (since we don’t need two PyLong objects) and we return a reference on the already allocated number.</p>
+
+<h3 id="how-are-longs-created">How are longs created</h3>
+
+<p>Longs are created using the function <code class="language-plaintext highlighter-rouge">PyLongObject * _PyLong_New(Py_ssize_t size)</code>, size here refer to the number of digit of the target long.</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="k">if</span> <span class="p">(</span><span class="n">size</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">Py_ssize_t</span><span class="p">)</span><span class="n">MAX_LONG_DIGITS</span><span class="p">)</span> <span class="p">{</span>
+	<span class="n">PyErr_SetString</span><span class="p">(</span><span class="n">PyExc_OverflowError</span><span class="p">,</span>
+					<span class="s">"too many digits in integer"</span><span class="p">);</span>
+	<span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Well, looks like we can’t have an indefinely big integer, but how big can our integers be ?</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="cp">#define MAX_LONG_DIGITS \
+    ((PY_SSIZE_T_MAX - offsetof(PyLongObject, ob_digit))/sizeof(digit))</span></code></pre></figure>
+
+<p>If you don’t already know it, <em>offsetof</em> is a <em>C</em> function wich will basicaly return an offset of the member (ob_digit) from the structure (PyLongObject), if you recall correctly, since our struture only contains <code class="language-plaintext highlighter-rouge">PyObject_VAR_HEAD</code> and 	<code class="language-plaintext highlighter-rouge">digit ob_digit</code>. so the offset is the memorry taken with VAR_HEAD.</p>
+
+<p>So a integer has a maximal size of roughly Py_SSIZE_T_MAx.</p>
+
+<p>According to this answer : <a href="https://stackoverflow.com/a/42777910/14517936">https://stackoverflow.com/a/42777910/14517936</a> <code class="language-plaintext highlighter-rouge">Py_SSIZE_T_MAX = sys.maxsize</code>, which is according to the official documentation ( <a href="https://docs.python.org/3/library/sys.html#sys.maxsize">https://docs.python.org/3/library/sys.html#sys.maxsize</a> ) equal to <code class="language-plaintext highlighter-rouge">2**31 - 1</code> on 32 bits machine or <code class="language-plaintext highlighter-rouge">2**63 - 1</code>.</p>
+
+<p><code class="language-plaintext highlighter-rouge">2**63 - 1</code> is a huge number of digits.</p>
+
+<p>You can check this limit yourself by doing :</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="kn">import</span> <span class="nn">sys</span>
+<span class="mi">10</span><span class="o">**</span><span class="n">sys</span><span class="p">.</span><span class="n">maxsize</span></code></pre></figure>
+
+<p>If the size is fine, we allocate enough memory to store our integer :</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="n">result</span> <span class="o">=</span> <span class="n">PyObject_MALLOC</span><span class="p">(</span><span class="n">offsetof</span><span class="p">(</span><span class="n">PyLongObject</span><span class="p">,</span> <span class="n">ob_digit</span><span class="p">)</span> <span class="o">+</span>
+						 <span class="n">size</span><span class="o">*</span><span class="nf">sizeof</span><span class="p">(</span><span class="n">digit</span><span class="p">));</span>
+<span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">result</span><span class="p">)</span> <span class="p">{</span>
+	<span class="n">PyErr_NoMemory</span><span class="p">();</span>
+	<span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>As a good practice you should ALWAYS check that an allocation had correctly been performed, which may not be the case if you don’t have enough memory for example, your futur self will thank you.</p>
+
+<h3 id="adding-two-integers">Adding two integers</h3>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="k">static</span> <span class="n">PyObject</span> <span class="o">*</span>
+<span class="nf">long_add</span><span class="p">(</span><span class="n">PyLongObject</span> <span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="n">PyLongObject</span> <span class="o">*</span><span class="n">b</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">PyLongObject</span> <span class="o">*</span><span class="n">z</span><span class="p">;</span>
+
+    <span class="n">CHECK_BINOP</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">);</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">Py_ABS</span><span class="p">(</span><span class="n">Py_SIZE</span><span class="p">(</span><span class="n">a</span><span class="p">))</span> <span class="o">&lt;=</span> <span class="mi">1</span> <span class="o">&amp;&amp;</span> <span class="n">Py_ABS</span><span class="p">(</span><span class="n">Py_SIZE</span><span class="p">(</span><span class="n">b</span><span class="p">))</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="n">PyLong_FromLong</span><span class="p">(</span><span class="n">MEDIUM_VALUE</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">+</span> <span class="n">MEDIUM_VALUE</span><span class="p">(</span><span class="n">b</span><span class="p">));</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">Py_SIZE</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">Py_SIZE</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">x_add</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">);</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">z</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+                <span class="cm">/* x_add received at least one multiple-digit int,
+                   and thus z must be a multiple-digit int.
+                   That also means z is not an element of
+                   small_ints, so negating it in-place is safe. */</span>
+                <span class="n">assert</span><span class="p">(</span><span class="n">Py_REFCNT</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">);</span>
+                <span class="n">Py_SET_SIZE</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="o">-</span><span class="p">(</span><span class="n">Py_SIZE</span><span class="p">(</span><span class="n">z</span><span class="p">)));</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        <span class="k">else</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">x_sub</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">else</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">Py_SIZE</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">x_sub</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">);</span>
+        <span class="k">else</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">x_add</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">PyObject</span> <span class="o">*</span><span class="p">)</span><span class="n">z</span><span class="p">;</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>First we check that the two integers are valid.</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="cp">#define CHECK_BINOP(v,w)                                \
+    do {                                                \
+        if (!PyLong_Check(v) || !PyLong_Check(w))       \
+            Py_RETURN_NOTIMPLEMENTED;                   \
+    } while(0)</span></code></pre></figure>
+
+<p>One curious thing you may have noticed is the :</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="k">do</span> <span class="p">{</span>
+	<span class="n">INSTR</span><span class="p">;</span>
+<span class="p">}</span> <span class="k">while</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span></code></pre></figure>
+
+<p>Which seems exactly the same as simply :</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="n">INST</span><span class="p">;</span></code></pre></figure>
+
+<p>The purpose of doing this is macros in C are not really smart, the <em>preprocessor</em> will simply do a find/replace and hope for the best. The problem with this can be illustrated with the following macro :</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="cp">#define fct() \
+	INSTR1; \
+	INSTR2; </span><span class="err">\</span></code></pre></figure>
+
+<p>But what happens if you do :</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="k">if</span><span class="p">(</span><span class="n">condition</span><span class="p">)</span>
+	<span class="n">fct</span><span class="p">()</span>
+<span class="k">else</span>
+	<span class="n">INSTR3</span><span class="p">;</span></code></pre></figure>
+
+<p>the preprocessor will replace this with :</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="k">if</span><span class="p">(</span><span class="n">condition</span><span class="p">)</span>
+	<span class="n">INSTR1</span><span class="p">;</span>
+<span class="n">INSTR2</span><span class="p">;</span>
+<span class="k">else</span>
+	<span class="n">INSTR</span><span class="p">;</span></code></pre></figure>
+
+<p>which is not valid <em>C</em>, since in <em>C</em> if you omit the braces, the if body will only consists of the first instruction which is not what you would expect.</p>
+
+<p>The do while solve this by enclosing all our instructions in one scope.</p>
+
+<p>But why not just use :</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="p">{</span>
+	<span class="n">INSTR1</span><span class="p">;</span>
+	<span class="n">INSTR2</span><span class="p">;</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>As far as i know this is simply a syntaxic choice, since writing <code class="language-plaintext highlighter-rouge">MACRO();</code> is more natural than <code class="language-plaintext highlighter-rouge">MACRO()</code> (not that in the second case we have no semicolon).</p>
+
+<p>The rest is :</p>
+
+<ul>
+  <li>if both a and b are negative we return -|a + b|</li>
+  <li>if a is negative but not b we compute b - a</li>
+  <li>if b is negative and a is positive we compute a - b</li>
+  <li>if both are positive we compute |a + b|</li>
+</ul>
+
+<p>This looks fairly complicated for a simple a + b, so why all the burden ?</p>
+
+<p>Well recall that in <code class="language-plaintext highlighter-rouge">Python</code> integers can be very large (2^63 digits on 64 bits machines), this is achieved by storing the integers in arrays (each element representing a digit).</p>
+
+<p>We dive in the <code class="language-plaintext highlighter-rouge">x_add</code> code we see :</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">size_b</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">carry</span> <span class="o">+=</span> <span class="n">a</span><span class="o">-&gt;</span><span class="n">ob_digit</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">b</span><span class="o">-&gt;</span><span class="n">ob_digit</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+        <span class="n">z</span><span class="o">-&gt;</span><span class="n">ob_digit</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">carry</span> <span class="o">&amp;</span> <span class="n">PyLong_MASK</span><span class="p">;</span>
+        <span class="n">carry</span> <span class="o">&gt;&gt;=</span> <span class="n">PyLong_SHIFT</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">for</span> <span class="p">(;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">size_a</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">carry</span> <span class="o">+=</span> <span class="n">a</span><span class="o">-&gt;</span><span class="n">ob_digit</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+        <span class="n">z</span><span class="o">-&gt;</span><span class="n">ob_digit</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">carry</span> <span class="o">&amp;</span> <span class="n">PyLong_MASK</span><span class="p">;</span>
+        <span class="n">carry</span> <span class="o">&gt;&gt;=</span> <span class="n">PyLong_SHIFT</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">z</span><span class="o">-&gt;</span><span class="n">ob_digit</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">carry</span><span class="p">;</span></code></pre></figure>
+
+<h2 id="conclusion">Conclusion</h2>
+<p>And that’s it, the <code class="language-plaintext highlighter-rouge">long_sub</code> is fairly similar, and you can always (i encourage you to do so) check multiplication and division code.</p>
+
+<p>We rarely stop to think about basic operations like integer operations, the longobject file shows use how complex and optimised long/integers implementation is in python.</p>

@@ -1,28 +1,1535 @@
----
-layout: null
----
-
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
- <title>{{ site.title }}</title>
- <link href="{{ site.url }}{{ site.baseurl }}/atom.xml" rel="self"/>
- <link href="{{ site.url }}{{ site.baseurl }}/"/>
- <updated>{{ site.time | date_to_xmlschema }}</updated>
- <id>{{ site.url }}</id>
+ <title></title>
+ <link href="/atom.xml" rel="self"/>
+ <link href="/"/>
+ <updated>2022-11-29T21:14:58+01:00</updated>
+ <id></id>
  <author>
-   <name>{{ site.author.name }}</name>
-   <email>{{ site.author.email }}</email>
+   <name></name>
+   <email></email>
  </author>
 
- {% for post in site.posts %}
+ 
  <entry>
-   <title>{{ post.title }}</title>
-   <link href="{{ site.url }}{{ post.url }}"/>
-   <updated>{{ post.date | date_to_xmlschema }}</updated>
-   <id>{{ site.url }}{{ site.baseurl }}{{ post.id }}</id>
-   <content type="html">{{ post.content | xml_escape }}</content>
+   <title>Lessons learned designing libraries</title>
+   <link href="/blog/2022/10/06/developping-libraries.html"/>
+   <updated>2022-10-06T00:00:00+02:00</updated>
+   <id>/blog/2022/10/06/developping-libraries</id>
+   <content type="html">&lt;p&gt;One of the interessting aspects of working in the automatic trading industry, is that a lot of the software that you develop tend to be used by users that can code. Almost all the traders are fluent in &lt;em&gt;Python&lt;/em&gt; and its related data stack (pandas, numpy, etc.).
+This results in a lot of the software being developped taking the form of libraries.&lt;/p&gt;
+
+&lt;p&gt;Developping a library is quite different from developping a gui based software (like a website or a mobile app), you need to solve different challenges and the user experience is definetly not the same.&lt;/p&gt;
+
+&lt;p&gt;In my current team I had the opportunity to develop two &lt;em&gt;python&lt;/em&gt; libraries for quant traders. In this article I’ll share some of the lessons I learnt along the way.&lt;/p&gt;
+
+&lt;p&gt;Please keep in mind that I only been in the industry for about 2 years, you should definetly take all those “tips” and “guidelines” with a grain of salt. Look at it as more of an experience of a young software developper.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-makes-a-good-library-&quot;&gt;What makes a good library ?&lt;/h2&gt;
+
+&lt;h3 id=&quot;brievety&quot;&gt;Brievety&lt;/h3&gt;
+
+&lt;p&gt;When the user is trying to solve his problem, the library “patterns” should not stand in his way, he should not need to instantiate 3 differents objects before starting doing any meaninful work.
+When you’re designing a library it’s easy to fall into the trap of designing a path of usage that you expect all your users to follow. It looks evident to you that you need to create X, Y, Z call those specific functions to setup your environement, but this can become more cumbersome than anythin else.&lt;/p&gt;
+
+&lt;p&gt;One of the libraries I worked on, was a reporting library. The idea is that you could specify a datasource (portfolio and a date), and then using library blocs (metrics) you could construct tables that in turn can be used to generate a whole html report.
+In my mind the use case sounded obvious: The trader pick the metrics he wants to compute, build his report and read it on his favourite browser to come with next big strategy.&lt;/p&gt;
+
+&lt;p&gt;In practice, a lot of data analysis and research was done inside jupyter notebooks, and when you’re in that environement it’s way easier to directly compute what you want on your dataframe and just print it, you didn’t need the html report. Unfortunetly you couldn’t, the library didn’t provide an easy way to print a single table, you had to create a Report object and you had to generate an html table, the user had no way to “just” print the table he just computed. I believe that this complex workflow considerably slowed the adoption of the reporting library, and limited its usage to daily reports even when this complexity wasn’t really necessary.&lt;/p&gt;
+
+&lt;h3 id=&quot;hackability&quot;&gt;Hackability&lt;/h3&gt;
+
+&lt;p&gt;When you develop a gui based tool, the user actions are limited by the user interface, the user can’t do an action that you didn’t implement (unless maybe you expose some form of API, like browser extensions), if there is no button to delete an item the user can’t delete the item. With libraries it’s a different story, the users can end up using your bloks in a totally different way that you imagined. A library should not have fixed goals, and should give users&lt;/p&gt;
+
+&lt;h3 id=&quot;efficiency&quot;&gt;Efficiency&lt;/h3&gt;
+
+&lt;h2 id=&quot;designing-the-library-on-2-layers&quot;&gt;Designing the library on 2 layers&lt;/h2&gt;
+
+&lt;h2 id=&quot;the-user-experience&quot;&gt;The user experience&lt;/h2&gt;
+
+&lt;p&gt;The user experience of using a library is very similar to a programming language, a lot of it is compromising how easy the library is vs how complex your code is.&lt;/p&gt;
+
+&lt;p&gt;A simple exemple, if one of your functions accept a list of strings (like pathnames), should it accept a single string ? Or should it always expect a list, even if it’s for one element. What about dates ? should you accept strings or only true python dates ?&lt;/p&gt;
+
+&lt;p&gt;Larry Wall, Perl creator, has the Waterbed Theory: “This is a theory which says that if you push down the complexity in one part of a language or tool, there is a compensation which increases the complexity of another part of the language or tool.”&lt;/p&gt;
+
+&lt;p&gt;In my experience I find that one way to solve this, is designing your libraries in two&lt;/p&gt;
+
+&lt;h2 id=&quot;plan&quot;&gt;Plan&lt;/h2&gt;
+
+&lt;p&gt;the ux
+adoption
+design
+backward compatibility&lt;/p&gt;
+
+&lt;h2 id=&quot;wait--what-the-heck-is-cpython-&quot;&gt;Wait … What the heck is CPython ?&lt;/h2&gt;
+
+&lt;p&gt;&lt;em&gt;CPython&lt;/em&gt; is the official python implementation. You need to understand that there is a difference between python specification and a python implementation.&lt;/p&gt;
+
+&lt;p&gt;A simple example can be the sorting function :&lt;/p&gt;
+
+&lt;p&gt;The python specification specify that a valid implementation should offer a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sorted&lt;/code&gt; function which can take a list and sort it.&lt;/p&gt;
+
+&lt;p&gt;But as you may recall from your painfull algorithms course, there are multiple sorting algorithms, so which one are being used ? Well, as a lot of things, it depends on the implementation.&lt;/p&gt;
+
+&lt;p&gt;In fact you can create your own implementation and use bubble sort if you want, not a very practical choice but you can !&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;CPython&lt;/em&gt; is widely used nowadays, and a lot of its code is wrote using C, again this is an implementation detail not a specification one.&lt;/p&gt;
+
+&lt;p&gt;There are other python implementations like &lt;em&gt;PyPy&lt;/em&gt; (which use JIT compilation), or &lt;em&gt;Jython&lt;/em&gt; which is ran on a JVM machine.&lt;/p&gt;
+
+&lt;h2 id=&quot;getting-the-code&quot;&gt;Getting the code&lt;/h2&gt;
+
+&lt;p&gt;the first step is to get the cpython code. For that we gonna just clone the official repo on github :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;git clone https://github.com/python/cpython.git&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h2 id=&quot;subprocesspopen--the-class&quot;&gt;Subprocess.Popen : The class&lt;/h2&gt;
+
+&lt;p&gt;Please note that we won’t really analyze ALL the code of &lt;em&gt;Popen&lt;/em&gt;, there are way too many options and use cases to fit in this article.&lt;/p&gt;
+
+&lt;p&gt;Instead we juste gonna try to understand what happens when you execute this line of code :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;subprocess&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Popen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&apos;ls&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&apos;-l&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;We need to find a starting point, we can simply do :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;find &lt;span class=&quot;nt&quot;&gt;-name&lt;/span&gt; subprocess.py 
+
+./Lib/asyncio/subprocess.py
+./Lib/subprocess.py&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;we can safely assume that the module we’re searching for is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Lib/subprocess&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;By searching for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Popen&lt;/code&gt; in the file we find a class :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Popen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;&quot;&quot;&quot; Execute a child program in a new process.
+
+    For a complete description of the arguments see the Python documentation.
+
+    Arguments:
+      args: A string, or a sequence of program arguments.&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The first instruction is :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;_child_created&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;False&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;# Set here since __del__ checks it&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;__del__&lt;/code&gt; is basicaly a destructor method in python, this method is automatically called when the garbage collector try to free the object.&lt;/p&gt;
+
+&lt;p&gt;in CPython the garbage collector use what we call &lt;em&gt;reference counting&lt;/em&gt;, this means that if you write something like this :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; 
+
+&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# we affect a new list to a&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;In the second line we no longer have a reference to the list &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;[1, 2, 3]&lt;/code&gt;, which means that the garbage collector may delete it (or not) any time.&lt;/p&gt;
+
+&lt;p&gt;my guess, is that if you run a command like this :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;subprocess&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Popen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&apos;my command&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;since you’re not referencing the Popen object, it is a &lt;em&gt;garbage candidate&lt;/em&gt;, and the gc may try to delete it before it run. Which is not the excepected behaviour since you except the command to run even if you don’t care about what it’ll return.&lt;/p&gt;
+
+&lt;p&gt;What surprises me tough is the fact that it’s a class attribute, there is surely a reason behind it, but i’m not sure what.&lt;/p&gt;
+
+&lt;p&gt;After doing a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git blame&lt;/code&gt;, we can see that it was actually an instance attribute before this commit &lt;a href=&quot;https://github.com/python/cpython/commit/72e7761301febe026536e7a2a444269698dcf156&quot;&gt;72e7761301febe026536e7a2a444269698dcf156&lt;/a&gt;. Which refers to this issue : &lt;a href=&quot;https://bugs.python.org/issue12085&quot;&gt;issue12085&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;And the explanation is as follow :&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;If subprocess.Popen is called with a keyword argument whose name is undefined or simply too many arguments, an instance of the Popen class is created but its __init__ method call fails due to the invalid argument list. (Immediately) afterwards, the new instance is destroyed and its __del__ method is called, which checks the _child_created field that is defined by __init__; but __init__ never got the chance to execute, so the field is not defined, and __del__ raises an AttributeError, which is written out to stderr.&lt;/p&gt;
+
+  &lt;p&gt;- Oleg Oshmyan (chortos) [2011]&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;the-__init__-method&quot;&gt;The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;__init__&lt;/code&gt; method&lt;/h2&gt;
+
+&lt;p&gt;the first instruction in the init method is :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;_cleanup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;from the comment it looks like the purpose of the function is to avoid zombie processes. one thing that i like about this function is how the autor of the except explictly explain why he passes when he catches a ValueError and why it’s okay. I see a lot of developpers using the pattern &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;try: except (some exception or just Exception) pass&lt;/code&gt; instead of treating the error proply. This can be very risky as it may hide a real error that you wish you saw before wasting 2 days trying to debug a random issue.&lt;/p&gt;
+
+&lt;p&gt;After that we can see some basic parameters validation : like &lt;em&gt;is bufsize an integer&lt;/em&gt; ?&lt;/p&gt;
+
+&lt;p&gt;This is also a very good habit to have, especialy in a dynamicaly typed language like Python.&lt;/p&gt;
+
+&lt;p&gt;your code may still work with the wrong types and give you a wrong result, as an example :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;to_upper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;list_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;upper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;list_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;to_upper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&apos;aaa&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&apos;bbb&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# [&apos;AAA&apos;, &apos;BBB&apos;]
+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;to_upper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&apos;ab&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# [&apos;A&apos;, &apos;B&apos;]&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;As you can see altough it works, example 2 is clearly not what the user would expect.&lt;/p&gt;
+
+&lt;p&gt;You can also start to see that some code parts depends on the target plateforme (windows / POSIX), for the rest of this article, I’ll focus on the POSIX part.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p2cwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;c2pread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;errread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_get_handles&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stderr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;next we get the &lt;em&gt;file decriptors&lt;/em&gt; related to the optional arguments stdin/stdout/stderr.&lt;/p&gt;
+
+&lt;p&gt;A file descriptor is an abstraction managed by the process, each file descriptor points to an entry in a system wide table called &lt;em&gt;Open file table&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;In python you can do :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;my file&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fileno&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;This will return the file descriptor.&lt;/p&gt;
+
+&lt;p&gt;Based on the comments and common sense it looks like, we will not always need 6 file descriptors, but only if we choose to communicate with the child process (which is not our case for our example).&lt;/p&gt;
+
+&lt;p&gt;In our example it looks like : &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;c2pwrite&lt;/code&gt; will be the fd of the output of our script (1 if stdout) and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;p2cread&lt;/code&gt; the fd of the input of our script (0 if stdin).&lt;/p&gt;
+
+&lt;p&gt;In the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;_get_handles&lt;/code&gt; function :&lt;/p&gt;
+
+&lt;p&gt;looks like the default values (if no alternative stdout/in/err) is provided) : -1.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p2cwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;c2pread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;errread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+
+ 
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;the function seems to confirm our hypothesis :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+	&lt;span class=&quot;c1&quot;&gt;# Assuming file-like object
+&lt;/span&gt;	&lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fileno&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+	&lt;span class=&quot;c1&quot;&gt;# Assuming file-like object
+&lt;/span&gt;	&lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fileno&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;it does bug me how similar the stdin / stdout / stderr code is. I know if I had to write this code I will desperatly try to somehow refactore it in one block, I’m not sure tough if it will be a good idea, refactoring is not always a good thing.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt; &lt;span class=&quot;c1&quot;&gt;# How long to resume waiting on a child after the first ^C.
+&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# There is no right value for this.  The purpose is to be polite
+&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# yet remain good for interactive users trying to exit a tool.
+&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_sigint_wait_secs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;0.25&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;# 1/xkcd221.getRandomNumber()&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;I found the comment funny, for refecence this the xkcd comic that it refers to :&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://imgs.xkcd.com/comics/random_number.png&quot; alt=&quot;xkcd comic&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;next we call the function : &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;_execute_child&lt;/code&gt; (POSIX version in our case) :&lt;/p&gt;
+
+&lt;h2 id=&quot;_execute_child-function&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;_execute_child&lt;/code&gt; function&lt;/h2&gt;
+
+&lt;p&gt;Again some basic parameter validation.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;audit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;subprocess.Popen&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;executable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cwd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;env&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;this will send a &lt;em&gt;signal&lt;/em&gt; and subsribed functions may do things accordenly (no idea what tough).&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_USE_POSIX_SPAWN&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dirname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;executable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;os_posix_spawnp_impl1712&lt;/span&gt;                     
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;preexec_fn&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;close_fds&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pass_fds&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cwd&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;errwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_new_session&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;gid&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;gids&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;uid&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;umask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+		&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_posix_spawn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;executable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;env&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;restore_signals&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+				&lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p2cwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+				&lt;span class=&quot;n&quot;&gt;c2pread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+				&lt;span class=&quot;n&quot;&gt;errread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+		&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;if the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;_USE_POSIX_SPAWN&lt;/code&gt; is true, python will try to use it to create the child process.&lt;/p&gt;
+
+&lt;p&gt;according to : &lt;a href=&quot;https://web.archive.org/web/20190922113430/https://www.oracle.com/technetwork/server-storage/solaris10/subprocess-136439.html&quot;&gt;https://web.archive.org/web/20190922113430/https://www.oracle.com/technetwork/server-storage/solaris10/subprocess-136439.html &lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;posix_spawn&lt;/code&gt; will not copy the data of the parent process, which can make the script start faster for larger processes.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt; 
+
+ &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;platform&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&apos;linux&apos;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;libc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&apos;glibc&apos;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;version&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;24&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+ 	&lt;span class=&quot;c1&quot;&gt;# glibc 2.24 has a new Linux posix_spawn implementation using vfork
+&lt;/span&gt; 	&lt;span class=&quot;c1&quot;&gt;# which properly reports errors to the parent process.
+&lt;/span&gt; 	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;that if you are on a linux plateform and the version of &lt;em&gt;glibc&lt;/em&gt; is greater than &lt;em&gt;2.24&lt;/em&gt; you ll use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;posix_spanw()&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;the 2.24 version of glibc has been released around 2016 so it’s fair to assume that if you have a recent linux distribution you ll also use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;posix_spawn()&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;If you want to check&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;ldd &lt;span class=&quot;nt&quot;&gt;--version&lt;/span&gt;
+
+ldd &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;Ubuntu GLIBC 2.31-0ubuntu9.1&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; 2.31&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;If you’re interessted you can read the disccusion (on the python bug tracker) which lead to trying to use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;posix_span&lt;/code&gt; : &lt;a href=&quot;https://bugs.python.org/issue35537&quot;&gt;https://bugs.python.org/issue35537&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;_posix_spawn-function&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;_posix_spawn&lt;/code&gt; function&lt;/h2&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;env&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;env&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;looks like our child process will inherit all our defined env variables&lt;/p&gt;
+
+&lt;p&gt;one interessting thing :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fd2&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+ &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+ &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+ &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;errwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+ &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fd&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+     &lt;span class=&quot;n&quot;&gt;file_actions&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;POSIX_SPAWN_DUP2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fd2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;we iterate over the fds (in/out/err) of our child process, which are -1 by default
+as you can see if they’re different than -1, based on &lt;a href=&quot;https://linux.die.net/man/2/dup2&quot;&gt;https://linux.die.net/man/2/dup2&lt;/a&gt;, will close fd2 (standard input/output), and copy the value of fd (our new fd) place of it.&lt;/p&gt;
+
+&lt;p&gt;which mean in our case (-1) nothing happen ! so even if sys.stdout is different than 1, this won’t affect children process, and this explain why &lt;em&gt;contextredirect&lt;/em&gt; will not affect children output/error&lt;/p&gt;
+
+&lt;h2 id=&quot;osposix_spawn-function&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;os.posix_spawn&lt;/code&gt; function&lt;/h2&gt;
+
+&lt;p&gt;we open &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;os.py&lt;/code&gt; (same folder), we do a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/f posix_spawn&lt;/code&gt; : nada. There is no function in this module with this name, my guess is that the function added to the exported functions somehow, and that it may be defined in the c code.&lt;/p&gt;
+
+&lt;p&gt;by doing a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;grep -R &apos;posix_spawn&apos;&lt;/code&gt;, we seem to have a strong candidate here :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;Modules/clinic/posixmodule.c.h:    &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;posix_spawnp&quot;&lt;/span&gt;, &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;PyCFunction&lt;span class=&quot;o&quot;&gt;)(&lt;/span&gt;void&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)(&lt;/span&gt;void&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt;os_posix_spawnp, METH_FASTCALL|METH_KEYWORDS, os_posix_spawnp__doc__&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;,
+Modules/clinic/posixmodule.c.h:os_posix_spawnp_impl&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;PyObject &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;module, path_t &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;path, PyObject &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;argv,
+Modules/clinic/posixmodule.c.h:os_posix_spawnp&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;PyObject &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;module, PyObject &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;const &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;args, Py_ssize_t nargs, PyObject &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;kwnames&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;I guess that our function is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&apos;os_posix_spawnp&apos;&lt;/code&gt; :&lt;/p&gt;
+
+&lt;p&gt;Note : the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PyObject&lt;/code&gt; is a C wrapper aroud python objects, so each variable you use in python, will be presented by a PyObject in C.&lt;/p&gt;
+
+&lt;p&gt;we first see some initializations.&lt;/p&gt;
+
+&lt;p&gt;and then some … &lt;em&gt;gotos&lt;/em&gt; ? gonna admit that is kinda weird, since, well :&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://imgs.xkcd.com/comics/goto.png&quot; alt=&quot;xkcd gogo comic&quot; /&gt;.&lt;/p&gt;
+
+&lt;p&gt;After some googling it appear that it’s not a bad practice to use for this kind of situation :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;doA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;doB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cleanupA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;doC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cleanupB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;cm&quot;&gt;/* everything has succeeded */&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;nl&quot;&gt;cleanupB:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;undoB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;nl&quot;&gt;cleanupA:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;undoA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;nl&quot;&gt;exit:&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;source : &lt;a href=&quot;https://stackoverflow.com/a/245761&quot;&gt;https://stackoverflow.com/a/245761&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;gotos are apprently also appropriate for jumping out of nested loops (fun fact : this is the only accepted form of goto in java, which is called &lt;em&gt;label&lt;/em&gt;)
+after multiple conditions we go here : &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;os_posix_spawnp_impl&lt;/code&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;os_posix_spawnp_impl-function&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;os_posix_spawnp_impl&lt;/code&gt; function&lt;/h2&gt;
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;grep -R os_posix_spawnp_impl&lt;/code&gt;, Modules/posixmodule.c looks like a strong candidate.&lt;/p&gt;
+
+&lt;p&gt;if you’re intriged by this line :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt; 
+&lt;span class=&quot;cm&quot;&gt;/*[clinic end generated code: output=7b9aaefe3031238d input=c1911043a22028da]*/&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;em&gt;clinic&lt;/em&gt; is a boilerpate code generator for CPython, we may inspect it in futur articles.&lt;/p&gt;
+
+&lt;h2 id=&quot;py_posix_spawn-function&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;py_posix_spawn&lt;/code&gt; function&lt;/h2&gt;
+&lt;hr /&gt;
+&lt;p&gt;As above, some checks and gotos.&lt;/p&gt;
+
+&lt;p&gt;then we call &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;posix_spawn&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;Which looks like our final step, since &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;posix_spawn&lt;/code&gt; is a native function in c : &lt;a href=&quot;https://man7.org/linux/man-pages/man3/posix_spawn.3.html&quot;&gt;https://man7.org/linux/man-pages/man3/posix_spawn.3.html&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;And that’s it, as you can see, this is definetly not an exaustive analysis of subprocess code. We left a lot of code/conditions. Maybe we’ll revisit them in later articles.&lt;/p&gt;
+
+&lt;p&gt;Hope you learned a thing or two in python, cpython or even general developpement best practices.&lt;/p&gt;
+
+&lt;p&gt;If you have any suggestion/request/comment feel free to contact me ! (more details here : &lt;a href=&quot;http://ykarroum/about&quot;&gt;about page&lt;/a&gt;.&lt;/p&gt;
+</content>
  </entry>
- {% endfor %}
+ 
+ <entry>
+   <title>The true cost of linked lists</title>
+   <link href="/blog/2022/05/30/true-cost-list.html"/>
+   <updated>2022-05-30T00:00:00+02:00</updated>
+   <id>/blog/2022/05/30/true-cost-list</id>
+   <content type="html">&lt;p&gt;Linked lists are often overused in introductory algorithmics courses, due to a heavy focus on theorical complexities. Unfortunatly, in practice, computers are complex beasts. They don’t execute instructions sequentially &lt;sup id=&quot;fnref:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt; with the same cost &lt;sup id=&quot;fnref:2&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;. This means that a data structure with faster theorical complexities does not necessarily translate to a more efficient data structure in practice.&lt;/p&gt;
+
+&lt;p&gt;In this article I’ll illutrate this by comparing the real performances of linked lists versus a contiguous vector, and I’ll show that even in some use cases where the list seems to be favored the vector is still a better choice. Of course, this doesn’t mean you should never use a linked list, but that you should be aware of its practical limitations and more informed when making the decision to use it or not.&lt;/p&gt;
+
+&lt;p&gt;Although linked lists are not specific to a particular language, the following article we’ll focus on C++ STL’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;list&lt;/code&gt; vs. C++ STL’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;vector&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;All the examples and measurements were ran on the following platform:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Ubuntu 20.04 (Linux 5.13.0-44-generic).&lt;/li&gt;
+  &lt;li&gt;Intel(R) Core(TM) i5-9300H CPU @ 2.40GHz&lt;/li&gt;
+  &lt;li&gt;C++ 14&lt;/li&gt;
+  &lt;li&gt;Clang 12&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We’ll also use &lt;em&gt;google’s benchmark&lt;/em&gt; &lt;sup id=&quot;fnref:5&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt; to make the measurements.&lt;/p&gt;
+
+&lt;h2 id=&quot;finding-the-last-element&quot;&gt;Finding (the last) element&lt;/h2&gt;
+
+&lt;p&gt;Let’s start with a simple scenario: Finding an element in our data structure. We’ll focus on the worst case, when the element is at the end of the container.&lt;/p&gt;
+
+&lt;p&gt;The theorical complexities are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;For list: O(n)&lt;/li&gt;
+  &lt;li&gt;For vector: O(n)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;You may expect the measurement to give us a similar value.&lt;/p&gt;
+
+&lt;p&gt;We’ll measure using the following code:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-cpp&quot; data-lang=&quot;cpp&quot;&gt;&lt;span class=&quot;cp&quot;&gt;#include&lt;/span&gt; &lt;span class=&quot;cpf&quot;&gt;&amp;lt;benchmark/benchmark.h&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;
+#include&lt;/span&gt; &lt;span class=&quot;cpf&quot;&gt;&amp;lt;list&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;
+&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;using&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;namespace&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;std&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;BM_ListFind&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;benchmark&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;State&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+
+
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;auto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PauseTiming&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tmp_list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;push_back&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;c1&quot;&gt;// This is used to have a more realistic benchmark, where you don&apos;t insert all your elements at once&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;j&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;j&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;j&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;tmp_list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;push_back&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;j&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;push_back&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ResumeTiming&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;begin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BM_VectorFind&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;benchmark&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;State&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;auto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PauseTiming&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;vector&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;push_back&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ResumeTiming&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;begin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;BENCHMARK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;BM_ListFind&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;BENCHMARK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;BM_VectorFind&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;BENCHMARK_MAIN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;This gives us the following results:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;2022-05-31T19:16:37+02:00
+Running ./a.out
+Run on &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;8 X 4100 MHz CPU s&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+CPU Caches:
+  L1 Data 32 KiB &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;x4&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+  L1 Instruction 32 KiB &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;x4&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+  L2 Unified 256 KiB &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;x4&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+  L3 Unified 8192 KiB &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;x1&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+Load Average: 2.40, 1.62, 1.40
+&lt;span class=&quot;k&quot;&gt;***&lt;/span&gt;WARNING&lt;span class=&quot;k&quot;&gt;***&lt;/span&gt; CPU scaling is enabled, the benchmark real &lt;span class=&quot;nb&quot;&gt;time &lt;/span&gt;measurements may be noisy and will incur extra overhead.
+&lt;span class=&quot;nt&quot;&gt;-------------------------------------------------------------&lt;/span&gt;
+Benchmark                   Time             CPU   Iterations
+&lt;span class=&quot;nt&quot;&gt;-------------------------------------------------------------&lt;/span&gt;
+BM_ListFind/8            2824 ns         2825 ns       247103
+BM_ListFind/64          18212 ns        18206 ns        38773
+BM_ListFind/512        153438 ns       153420 ns         4528
+BM_ListFind/4096      1618680 ns      1618639 ns          446
+BM_ListFind/8192      3758778 ns      3758624 ns          204
+BM_VectorFind/8           573 ns          575 ns      1210734
+BM_VectorFind/64          876 ns          877 ns       803397
+BM_VectorFind/512        3224 ns         3227 ns       214354
+BM_VectorFind/4096      21782 ns        21772 ns        32395
+BM_VectorFind/8192      43581 ns        43578 ns        16272&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Surprisingly enough, the vector version is almost 90 times faster than the list version for 8K.&lt;/p&gt;
+
+&lt;p&gt;How can we explain this big difference?&lt;/p&gt;
+
+&lt;p&gt;Let me introduce &lt;em&gt;spatial locality&lt;/em&gt; and &lt;em&gt;cache&lt;/em&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;caches-and-locality&quot;&gt;Caches and locality&lt;/h2&gt;
+
+&lt;p&gt;When you run a program (like our benchmarking example), you usually communicate (a lot) with the main memory. Although computers CPUs speed has improved a lot in the recent years, memory latencies did not. A typical memory access has a 100 ns latency &lt;sup id=&quot;fnref:3&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;. To improve overall performances, all modern CPUs now have multiple levels of caches. The cache is a blazingly fast, but very small, memory. On intel’s cpus you usually have 3 levels of cache (L1 -&amp;gt; L3), L1 being the fastest and smallest, and L3 (also commonly called LLC) being the slowest and biggest.&lt;/p&gt;
+
+&lt;p&gt;According to &lt;sup id=&quot;fnref:3:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;, the latencies are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;L1: 0.5 ns.&lt;/li&gt;
+  &lt;li&gt;L2: 7 ns.&lt;/li&gt;
+  &lt;li&gt;Main Memorry (DRAM): 100 ns.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;To show the cache’s size for your computer, you can use:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;lscpu  | &lt;span class=&quot;nb&quot;&gt;grep&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;cache:&quot;&lt;/span&gt;
+L1d cache:                       128 KiB
+L1i cache:                       128 KiB
+L2 cache:                        1 MiB
+L3 cache:                        8 MiB&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;You can see that I have two types of L1 cache: &lt;em&gt;L1d&lt;/em&gt; for &lt;em&gt;data&lt;/em&gt; and &lt;em&gt;L1i&lt;/em&gt; for &lt;em&gt;instructions&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;The CPU will keep data based on &lt;em&gt;locality&lt;/em&gt;. We have two types of locality: &lt;em&gt;spatial&lt;/em&gt; and &lt;em&gt;temporal&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Spatial locality&lt;/em&gt;: When you access an address in memory, you’ll probably need the content of the addresses closest to it.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Temporal locality&lt;/em&gt;: When you access an address in memory, you’ll probably need the same value in the near future.&lt;/p&gt;
+
+&lt;p&gt;But what does any of this have with our initial problem ?&lt;/p&gt;
+
+&lt;p&gt;Well the memory layout of the vector heavily benefit from the spatial locality, this is what happens in our benchmarking example:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;We Retrieve the first element value from memory (cost ~100 ns).&lt;/li&gt;
+  &lt;li&gt;The CPU expects us to use the near addresses’ contents, he’ll then retrieve a whole cache line from memory (64 bytes, or 16 ints on my computer).&lt;/li&gt;
+  &lt;li&gt;The next iteration, we try to access the content of the second element, since the values are contiguous in memory the value is in cache (cost ~7ns).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;For the linked list, things are a little different:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;We Retrieve the first element content from memory (cost ~100 ns).&lt;/li&gt;
+  &lt;li&gt;The CPU expects us to use the near addresses’ contents, he’ll then retrieve a whole cache line from memory (again 64 bytes).&lt;/li&gt;
+  &lt;li&gt;Then we fetch the next pointer, the next address is not necessarily the one next to the last one (cost 7ns to 100ns, in practice probably 100ns).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This is why I added the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;tmp_list&lt;/code&gt;, inserting all the elements at once will just put all the elements next to each other, which is not a realistic scenario.&lt;/p&gt;
+
+&lt;p&gt;When the CPU has to fetch from main memory instead of the cache, we say that the CPU did a &lt;em&gt;cache miss&lt;/em&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;counting-cache-misses&quot;&gt;Counting cache misses&lt;/h2&gt;
+
+&lt;p&gt;We can count the number of cache misses using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;jevents&lt;/code&gt; from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pmu_tools&lt;/code&gt; &lt;sup id=&quot;fnref:4&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;5&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
+
+&lt;p&gt;I’ll explain in a future article how the PMU/PMC works. For now you just need to understand that the CPU has a bunch of “counters” that we can use to count specific events, in our case the cache misses event.&lt;/p&gt;
+
+&lt;p&gt;We can use the following code:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-cpp&quot; data-lang=&quot;cpp&quot;&gt;&lt;span class=&quot;cp&quot;&gt;#include&lt;/span&gt; &lt;span class=&quot;cpf&quot;&gt;&amp;lt;rdpmc.h&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;
+#include&lt;/span&gt; &lt;span class=&quot;cpf&quot;&gt;&amp;lt;linux/perf_event.h&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;
+&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;BM_ListFind&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;benchmark&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;State&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;rdpmc_ctx&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;rdpmc_open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PERF_COUNT_HW_CACHE_MISSES&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;total&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;auto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;c1&quot;&gt;// We initialise our list here with a the 0 elements and one last 1.&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;start&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rdpmc_read&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;begin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;end&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rdpmc_read&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;total&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;end&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;c1&quot;&gt;// We can use google benchmark counters to have a nice reporting at the end &lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;counters&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;# cache misses&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;total&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;/&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;double&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;iterations&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;rdpmc_close&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;nt&quot;&gt;-------------------------------------------------------------&lt;/span&gt;
+Benchmark                   Time    Iterations &lt;span class=&quot;c&quot;&gt;# cache misses&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;-------------------------------------------------------------&lt;/span&gt;
+BM_ListFind/8            3029 ns        242975      0.0562321
+BM_ListFind/64          21968 ns         34644        2.45855
+BM_ListFind/512        172679 ns          4051        14.7554
+BM_ListFind/4096      1751986 ns           356        796.604
+BM_ListFind/8192      3430648 ns           202       1.69684k
+BM_VectorFind/8           624 ns       1103030       6.54833m
+BM_VectorFind/64          925 ns        754477       9.99765m
+BM_VectorFind/512        3385 ns        210652      0.0321431
+BM_VectorFind/4096      22554 ns         30999       0.662796
+BM_VectorFind/8192      45021 ns         15576        1.29173&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;You may find it odd that we have less than one cache miss for some rows, I mean we should at least need to access DRAM once right ?
+This is due google benchmarks running multiple iterations, first iteration will put the data in cache (precisly L2 and L3 that are big enough to keep it) and latter iterations will just use those low level caches. We can remove this effect by increasing the number of elements inserted in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;tmp_list&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;As you can see for 8K we make, in average 941 cache misses.&lt;/p&gt;
+
+&lt;h2 id=&quot;a-linked-list-on-contiguous-memorry&quot;&gt;A linked list on contiguous memorry&lt;/h2&gt;
+
+&lt;p&gt;We can now remove the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;tmp_list&lt;/code&gt; to have a linked list on contiguous memory, although in practice you’ll rarely use a list for a similar use case:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-cpp&quot; data-lang=&quot;cpp&quot;&gt;&lt;span class=&quot;cp&quot;&gt;#include&lt;/span&gt; &lt;span class=&quot;cpf&quot;&gt;&amp;lt;benchmark/benchmark.h&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;
+#include&lt;/span&gt; &lt;span class=&quot;cpf&quot;&gt;&amp;lt;list&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;
+&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;using&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;namespace&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;std&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;BM_ListFind&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;benchmark&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;State&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+
+
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;auto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PauseTiming&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;push_back&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ResumeTiming&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;begin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BM_VectorFind&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;benchmark&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;State&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;auto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PauseTiming&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;vector&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;push_back&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ResumeTiming&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;begin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;BENCHMARK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;BM_ListFind&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;BENCHMARK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;BM_VectorFind&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;BENCHMARK_MAIN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;2022-05-31T19:17:04+02:00
+Running ./a.out
+Run on &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;8 X 4100 MHz CPU s&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+CPU Caches:
+  L1 Data 32 KiB &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;x4&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+  L1 Instruction 32 KiB &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;x4&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+  L2 Unified 256 KiB &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;x4&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+  L3 Unified 8192 KiB &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;x1&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+Load Average: 2.83, 1.79, 1.46
+&lt;span class=&quot;k&quot;&gt;***&lt;/span&gt;WARNING&lt;span class=&quot;k&quot;&gt;***&lt;/span&gt; CPU scaling is enabled, the benchmark real &lt;span class=&quot;nb&quot;&gt;time &lt;/span&gt;measurements may be noisy and will incur extra overhead.
+&lt;span class=&quot;nt&quot;&gt;-------------------------------------------------------------&lt;/span&gt;
+Benchmark                   Time             CPU   Iterations
+&lt;span class=&quot;nt&quot;&gt;-------------------------------------------------------------&lt;/span&gt;
+BM_ListFind/8             827 ns          828 ns       839339
+BM_ListFind/64           2784 ns         2787 ns       252559
+BM_ListFind/512         18073 ns        18073 ns        38276
+BM_ListFind/4096       144158 ns       143987 ns         4808
+BM_ListFind/8192       292014 ns       291886 ns         2421
+BM_VectorFind/8           614 ns          615 ns      1119671
+BM_VectorFind/64          918 ns          920 ns       735972
+BM_VectorFind/512        3253 ns         3255 ns       214164
+BM_VectorFind/4096      23021 ns        23015 ns        32041
+BM_VectorFind/8192      44067 ns        44072 ns        16161&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The &lt;em&gt;vector&lt;/em&gt; version is &lt;em&gt;only&lt;/em&gt; 7 times faster.&lt;/p&gt;
+
+&lt;p&gt;The remaining difference can be explained by the size of the list node (32 bytes), a cache line can only hold 2 nodes while it can hold 16 integers.&lt;/p&gt;
+
+&lt;p&gt;We can count the number of cache misses:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;nt&quot;&gt;--------------------------------------------------------------&lt;/span&gt;
+Benchmark                   Time     Iterations &lt;span class=&quot;c&quot;&gt;# cache misses&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;--------------------------------------------------------------&lt;/span&gt;
+BM_ListFind/8             869 ns         813883      0.0198431
+BM_ListFind/64           2934 ns         236903       0.146575
+BM_ListFind/512         19266 ns          37231        2.06008
+BM_ListFind/4096       153910 ns           4617         70.506
+BM_ListFind/8192       310404 ns           2273        202.148
+BM_VectorFind/8           619 ns        1054643      0.0176287
+BM_VectorFind/64          936 ns         732034      0.0277105
+BM_VectorFind/512        3401 ns         207771      0.0983631
+BM_VectorFind/4096      23231 ns          30661        1.17905
+BM_VectorFind/8192      45480 ns          15304        3.28679&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;We can see that the number of cache misses has greatly decreased.&lt;/p&gt;
+
+&lt;p&gt;There is also the factor that by constructing the list once, we only do one &lt;em&gt;malloc&lt;/em&gt;, instead of &lt;em&gt;n&lt;/em&gt; mallocs which is also a major drawback of using a &lt;em&gt;list&lt;/em&gt; instead of &lt;em&gt;vector&lt;/em&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-about-inserting-in-the-middle-of-the-list-&quot;&gt;What about inserting in the middle of the list ?&lt;/h2&gt;
+
+&lt;p&gt;We measured the performance differences in the use case where both data structures have the same theoretical complexity, but what about when the list is supposed to clearly win ? Let see what happens if we try to insert in the middle of the data structure.&lt;/p&gt;
+
+&lt;p&gt;We can measure using the following code:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-cpp&quot; data-lang=&quot;cpp&quot;&gt;&lt;span class=&quot;cp&quot;&gt;#include&lt;/span&gt; &lt;span class=&quot;cpf&quot;&gt;&amp;lt;benchmark/benchmark.h&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;
+#include&lt;/span&gt; &lt;span class=&quot;cpf&quot;&gt;&amp;lt;list&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;
+&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;using&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;namespace&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;std&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;BM_ListInsert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;benchmark&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;State&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+
+
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;auto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PauseTiming&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ResumeTiming&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;){&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;auto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sec_it&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;begin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;sec_it&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;insert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sec_it&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BM_VectorInsert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;benchmark&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;State&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;auto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PauseTiming&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;vector&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ResumeTiming&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;insert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;begin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;BENCHMARK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;BM_ListInsert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Ranges&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;BENCHMARK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;BM_VectorInsert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Ranges&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;BENCHMARK_MAIN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The results (at this point I’m starting to think that plots would have been better):&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;nt&quot;&gt;--------------------------------------------------------------------&lt;/span&gt;
+Benchmark                          Time             CPU   Iterations
+&lt;span class=&quot;nt&quot;&gt;--------------------------------------------------------------------&lt;/span&gt;
+BM_ListInsert/8/8               1446 ns         1448 ns       484951
+BM_ListInsert/64/8              2816 ns         2819 ns       248839
+BM_ListInsert/512/8            13441 ns        13449 ns        51717
+BM_ListInsert/4096/8           98892 ns        98894 ns         6984
+BM_ListInsert/8192/8          197436 ns       197415 ns         3550
+BM_ListInsert/8/64              6549 ns         6550 ns       106478
+BM_ListInsert/64/64             7876 ns         7878 ns        88595
+BM_ListInsert/512/64           18704 ns        18721 ns        37360
+BM_ListInsert/4096/64         104789 ns       104791 ns         6711
+BM_ListInsert/8192/64         209456 ns       209441 ns         3430
+BM_ListInsert/8/512            46935 ns        46946 ns        14982
+BM_ListInsert/64/512           48067 ns        48089 ns        14506
+BM_ListInsert/512/512          61742 ns        61763 ns        11842
+BM_ListInsert/4096/512        149032 ns       149036 ns         4802
+BM_ListInsert/8192/512        253049 ns       253037 ns         2881
+BM_ListInsert/8/4096          400709 ns       400703 ns         1874
+BM_ListInsert/64/4096         375582 ns       375586 ns         1783
+BM_ListInsert/512/4096        415123 ns       415109 ns         1704
+BM_ListInsert/4096/4096       505394 ns       505322 ns         1477
+BM_ListInsert/8192/4096       575418 ns       575379 ns         1134
+BM_ListInsert/8/8192          816366 ns       816346 ns          856
+BM_ListInsert/64/8192         758503 ns       758501 ns          842
+BM_ListInsert/512/8192        771846 ns       771823 ns          891
+BM_ListInsert/4096/8192       866835 ns       866779 ns          793
+BM_ListInsert/8192/8192       973025 ns       972948 ns          718
+BM_VectorInsert/8/8             1201 ns         1202 ns       577995
+BM_VectorInsert/64/8            1247 ns         1249 ns       553982
+BM_VectorInsert/512/8           1463 ns         1464 ns       476086
+BM_VectorInsert/4096/8          2882 ns         2888 ns       242229
+BM_VectorInsert/8192/8          4770 ns         4772 ns       147160
+BM_VectorInsert/8/64            6142 ns         6144 ns       113078
+BM_VectorInsert/64/64           5923 ns         5923 ns       117244
+BM_VectorInsert/512/64          7290 ns         7290 ns        94952
+BM_VectorInsert/4096/64        18229 ns        18238 ns        38540
+BM_VectorInsert/8192/64        30272 ns        30273 ns        22990
+BM_VectorInsert/8/512          48338 ns        48340 ns        14481
+BM_VectorInsert/64/512         49249 ns        49250 ns        14209
+BM_VectorInsert/512/512        59721 ns        59720 ns        11596
+BM_VectorInsert/4096/512      149113 ns       149106 ns         4685
+BM_VectorInsert/8192/512      253002 ns       252983 ns         2775
+BM_VectorInsert/8/4096        735142 ns       735092 ns          950
+BM_VectorInsert/64/4096       745214 ns       745173 ns          937
+BM_VectorInsert/512/4096      835744 ns       835693 ns          835
+BM_VectorInsert/4096/4096    1554628 ns      1554518 ns          451
+BM_VectorInsert/8192/4096    2494333 ns      2494082 ns          281
+BM_VectorInsert/8/8192       2290270 ns      2290135 ns          305
+BM_VectorInsert/64/8192      2311752 ns      2311568 ns          302
+BM_VectorInsert/512/8192     2496926 ns      2496692 ns          281
+BM_VectorInsert/4096/8192    4074648 ns      4074257 ns          172
+BM_VectorInsert/8192/8192    5907307 ns      5906365 ns          113&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;As you can see the &lt;em&gt;vector&lt;/em&gt; is still faster on a lot of sizes, the &lt;em&gt;list&lt;/em&gt; data structures only become faster when we start inserting 4k elements!
+Why? Well each time we insert we pay a malloc, and &lt;em&gt;malloc&lt;/em&gt; can be really costly.&lt;/p&gt;
+
+&lt;p&gt;People tend to focus on the cost of moving the whole vector just to insert one element, but in practice (unless you’re doing it too often), the &lt;em&gt;mallocs&lt;/em&gt; cost will still be greater.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclution&quot;&gt;Conclution&lt;/h2&gt;
+
+&lt;p&gt;Should we then stop using linked lists? No, there are still use cases where &lt;em&gt;list&lt;/em&gt; will outperform a vector (as we saw earlier if you have a lot of insertions), but the point of this article is to show that we need to be more careful and informed before committing to using it, and one single insert in the middle of the list doesn’t justify the cost. It’s important to measure and to understand that theoretical model may not take into consideration things like cache costs and mallocs costs.&lt;/p&gt;
+
+&lt;p&gt;The same reasoning can be used on other data structures as well, like trees (std::map and std::set are usually implemented using a red black tree).&lt;/p&gt;
+
+&lt;h2 id=&quot;footnotes&quot;&gt;Footnotes&lt;/h2&gt;
+
+&lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:1&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;See Instruction Level Paralelism or Out of Order Execution. &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:2&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;A typical load from memory is around 100 slower than a simple &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ADD&lt;/code&gt;. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:5&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;&lt;a href=&quot;https://github.com/google/benchmark&quot;&gt;https://github.com/google/benchmark&lt;/a&gt; &lt;a href=&quot;#fnref:5&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:3&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;&lt;a href=&quot;http://www.cs.cornell.edu/projects/ladis2009/talks/dean-keynote-ladis2009.pdf&quot;&gt;http://www.cs.cornell.edu/projects/ladis2009/talks/dean-keynote-ladis2009.pdf&lt;/a&gt; (2009) &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt; &lt;a href=&quot;#fnref:3:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;sup&gt;2&lt;/sup&gt;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:4&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;&lt;a href=&quot;https://github.com/andikleen/pmu-tools/tree/master/jevents&quot;&gt;https://github.com/andikleen/pmu-tools/tree/master/jevents&lt;/a&gt; &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>Toughts on testing an untested software</title>
+   <link href="/blog/2021/06/02/testing.html"/>
+   <updated>2021-06-02T00:00:00+02:00</updated>
+   <id>/blog/2021/06/02/testing</id>
+   <content type="html">&lt;p&gt;In the software engineering world testing is important, unfortunately in your career you may find yourself working on software that does not have automated tests.&lt;/p&gt;
+
+&lt;p&gt;In my own experience this can be quite frequent in research based projects. Since a fair amount of those projects starts as a POC or multiple scripts where the emphasis is more on exploration and research than producing high quality code (which is perfectly normal). The industrialisation phase, which aims to build a production ready software based on those scripts, may not always involve adding automated tests.&lt;/p&gt;
+
+&lt;p&gt;Recently I found myself working on a similar project, it was a rapidly evolving project that involved a lot of developments and updates.&lt;/p&gt;
+
+&lt;p&gt;It was clear at some point that the more we updated the higher the risk of regression. Fortunately the product was still in the release phase and were intended to be used internally. This made the users very forgiving on errors regressions and didn’t expect a 5 nines reliability.&lt;/p&gt;
+
+&lt;p&gt;But the more we integrated our tool to our existing system the less our users stayed forgiving. So we decided to add automated testing to our tool.&lt;/p&gt;
+
+&lt;p&gt;The following is my own take on the subject, the lessons I learnt and how will I recommend to do it.&lt;/p&gt;
+
+&lt;h2 id=&quot;why-do-it-&quot;&gt;Why do it ?&lt;/h2&gt;
+
+&lt;p&gt;Adding automated tests make your code safer and the likeliness of regressions smaller. This is especially important if you update the software frequently. It’s always frustrating for you (and your users) to have to fix the same issue twice (or even more).&lt;/p&gt;
+
+&lt;p&gt;It also makes contributing to the project for newcomers easier, since they can safely update a part of the code without breaking other parts that they may be not aware of.&lt;/p&gt;
+
+&lt;p&gt;Adding automated tests on a non tested software does need (a lot) of time and doing it will make delivering new features for your users slower, at least in the short term.&lt;/p&gt;
+
+&lt;p&gt;But there is also a less obvious benefit for you: Doing it will force you to write better and testable code, since functions that do multiple non related things are arguably harder to test and their downsides are often visible later on when you need to change them.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-not-to-do-it&quot;&gt;How not to do it&lt;/h2&gt;
+
+&lt;p&gt;First of all, although it may be tempting, you shouldn’t try to do it in one pass.&lt;/p&gt;
+
+&lt;p&gt;Depending on the project you can’t stop all development for 2 weeks (or more) to add tests. This can have a huge impact, especialy if your product is in the early stages. Understanding your clients needs may give you more value at the beginning that ensuring you hit 90% coverage.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-much-should-you-test-&quot;&gt;How much should you test ?&lt;/h2&gt;
+
+&lt;p&gt;So how much testing (per time unit) do you need to do?&lt;/p&gt;
+
+&lt;p&gt;There is no &lt;em&gt;right&lt;/em&gt; answer. This will depend on multiple factors :&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;How familiar are you with the code/structure of the project: Adding tests to a new project is often trying to answer: &lt;em&gt;where can i add the most value by adding tests?&lt;/em&gt; This is a question easier answered if you’re already well aware of the critical parts of your software. If you’re new to the project you may instead prefer to spend more time to understand the current code.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;How often do you update the code: The more you do it the more the risk of adding regressions which means the more value you’ll get by automaticaly testing it&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;How many people are actively developping the software: I believe the more you are on a given project the more the risk of breaking others people code by introducing a change.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;how-to-do-it-&quot;&gt;How to do it ?&lt;/h2&gt;
+
+&lt;p&gt;Again this can be reduced to the following problem: What are the parts of my code that will benefit me the most if tested.&lt;/p&gt;
+
+&lt;p&gt;In this regard, I think that starting with integration tests will probably give you the most value (cost wise) and will make catching obvious issues (for errors such &lt;em&gt;Too many values to unpack&lt;/em&gt; in Python) easier.&lt;/p&gt;
+
+&lt;p&gt;After that you can start adding unit tests in the following order:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;When you solve an issue: This means, when you solve an issue try implementing the unit test that will prevent this issue from occurring again. Of course, this is just a rule of thumb and some issues will clearly be a one time thing, but still a good practice.&lt;/li&gt;
+  &lt;li&gt;Code that you just added: This will also encourage you to write cleaner and more testable code.&lt;/li&gt;
+  &lt;li&gt;If you’re familiar with the code / structure you can focus on critical parts of the system: Where will the regression really hurts ? For example if you work on a trading project function that monitor usage statics will typically be way less critical than the ones who compute the metrics which my directly impact traders decisions.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Ideally you need to prioritize the code that has both criteria : criticality and changing rate.&lt;/p&gt;
+
+&lt;p&gt;To get an idea of what parts of the code are the most updated you can do this:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;git log &lt;span class=&quot;nt&quot;&gt;--pretty&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;format: &lt;span class=&quot;nt&quot;&gt;--name-only&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;sort&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;uniq&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-c&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;sort&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-rg&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;head&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-10&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Source : https://stackoverflow.com/a/7686616&lt;/p&gt;
+
+&lt;p&gt;You should also, in my opinion, prioritise the code that is more easily testable. If the code doesn’t have unit tests, there are big chances that some parts may not be easily testable and will involve writing a lot of mocks and stubs. Refactoring is an option but can be very costly and hard if you’re new to the project.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-about-code-coverage-&quot;&gt;What about code coverage ?&lt;/h2&gt;
+
+&lt;p&gt;In my opinion code coverage can be important, but only in the early stages, the more unit tests you have the less coverage becomes important and the reasoning behind this is: If you have let’s say 70% code coverage you can already catch a fair amount of obvious issues, but chasing the remaining 30% may bring less value that adding a truly important unit test on the core parts of your software (as the metrics).&lt;/p&gt;
+
+&lt;p&gt;And focusing too much on code coverage can easily work against you by encouraging you or your team to increase it regardless of the quality of the tests, and it may give you a false confidence about the reliability of your automated tests.&lt;/p&gt;
+
+&lt;h2 id=&quot;overall-exerience&quot;&gt;Overall exerience&lt;/h2&gt;
+
+&lt;p&gt;All together it was a great experience, I was lucky to work in a team fully aware of the importance of testing and who was encouranging investing time writing tests and enforcing them. Writing tests will make your work/dev on the software slower in the short term and some teams may see it badly. If this is your case, communicate with your team explain your point of view and give a clear amount of time you plan to dedicate writing tests.&lt;/p&gt;
+
+&lt;p&gt;It’s extremely rewarding when you (or another person on your team) makes a change, and one of the tests you wrote fail due the change breaking some parts of the existing code.&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>Python Internals Serie : Int (Long) Object</title>
+   <link href="/blog/2021/01/10/intobject.html"/>
+   <updated>2021-01-10T00:00:00+01:00</updated>
+   <id>/blog/2021/01/10/intobject</id>
+   <content type="html">&lt;p&gt;In this article, we will read and discuss the implementation details of &lt;em&gt;ints&lt;/em&gt; in &lt;em&gt;CPython&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;Altough using integers in python is fairly easy :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The implementation file contains more than 5000 code lines.&lt;/p&gt;
+
+&lt;p&gt;Since the file contains roughly 116 functions/macros, I’ll probably skip some (most of ?) functions.&lt;/p&gt;
+
+&lt;p&gt;Without further ado, let’s dive into the code !&lt;/p&gt;
+
+&lt;h3 id=&quot;longobjectc&quot;&gt;longobject.c&lt;/h3&gt;
+
+&lt;p&gt;First we need to find a starting point, we know that all pythons objects are stored in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;cpython/Objects&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Unfortunetly, we don’t seem to have an &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;intobject.c&lt;/code&gt; file. That’s because the underlying C object for python integers is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PyLongObject&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;The file we’re interessted in is : &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;longobject.c&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;From now one I will refer to python’s integers implementation both using &lt;em&gt;integers&lt;/em&gt; or &lt;em&gt;longs&lt;/em&gt;, which is not technically accurate since in &lt;em&gt;C&lt;/em&gt; those are different types.&lt;/p&gt;
+
+&lt;p&gt;For the rest of this article, we’ll revisit some of the most used operations/functions related to integers.&lt;/p&gt;
+
+&lt;h4 id=&quot;medium_valuex&quot;&gt;MEDIUM_VALUE(x)&lt;/h4&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;cm&quot;&gt;/* convert a PyLong of size 1, 0 or -1 to an sdigit */&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#define MEDIUM_VALUE(x) (assert(-1 &amp;lt;= Py_SIZE(x) &amp;amp;&amp;amp; Py_SIZE(x) &amp;lt;= 1),   \
+         Py_SIZE(x) &amp;lt; 0 ? -(sdigit)(x)-&amp;gt;ob_digit[0] :   \
+             (Py_SIZE(x) == 0 ? (sdigit)0 :                             \
+              (sdigit)(x)-&amp;gt;ob_digit[0]))&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The comment is pretty explanatory, the macro convert a given &lt;em&gt;long&lt;/em&gt; to an &lt;em&gt;sdigit&lt;/em&gt;. But what’s an sdigit ? Well it depends :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;cp&quot;&gt;#if PYLONG_BITS_IN_DIGIT == 30 &lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* signed variant of digit */&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sdigit&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#elif PYLONG_BITS_IN_DIGIT == 15
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;short&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sdigit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* signed variant of digit */&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#else
+#error &quot;PYLONG_BITS_IN_DIGIT should be 15 or 30
+#endif&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PYLONG_BITS_IN_DIGIT&lt;/code&gt; is defined either at configure time or in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pyport.h&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;We have an assert to protect us from accidently casting a big integer, which is not small enough to fit in an sdigit, to an sdigit, which may result in a loss of information, therefore potentiely issues which can be hard to detect.&lt;/p&gt;
+
+&lt;p&gt;Curiously, the assert check that the &lt;em&gt;size&lt;/em&gt; of x is bigger than -1, but can be less than 0 ? My guess is that size is unsigned to represent both the size and the sign of the integer, for exemple : &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PY_SIZE(-15) = -2&lt;/code&gt;.
+This seems to be confirmed with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Py_SIZE(x) &amp;lt; 0 ? -(sdigit)(x)-&amp;gt;ob_digit[0]&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ob_digit&lt;/code&gt; looks like an array containing our integer. which can be confirmed in the file &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;longintrepr.h&lt;/code&gt; :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_longobject&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PyObject_VAR_HEAD&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;digit&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ob_digit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;One curious fact, that I can’t explain, is the small size of the array (one element ?), maybe it’s somehow changed at runtime.&lt;/p&gt;
+
+&lt;h4 id=&quot;is_small_intival&quot;&gt;IS_SMALL_INT(ival)&lt;/h4&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;cp&quot;&gt;#define IS_SMALL_INT(ival) (-NSMALLNEGINTS &amp;lt;= (ival) &amp;amp;&amp;amp; (ival) &amp;lt; NSMALLPOSINTS)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Pretty straightforward function.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NSMALLPOSINTS&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NSMALLNEGINTS&lt;/code&gt; is defined in the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pycore_interp.h&lt;/code&gt; file :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;cm&quot;&gt;/* interpreter state */&lt;/span&gt;
+
+&lt;span class=&quot;cp&quot;&gt;#define _PY_NSMALLPOSINTS           257
+#define _PY_NSMALLNEGINTS           5&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;To undesrtand why those 2 magic numbers and where this macro is used, let’s dive into the next function.&lt;/p&gt;
+
+&lt;h4 id=&quot;static-pyobject--get_small_intsdigit-ival&quot;&gt;static PyObject * get_small_int(sdigit ival)&lt;/h4&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;nf&quot;&gt;get_small_int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sdigit&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ival&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IS_SMALL_INT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ival&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PyInterpreterState&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;interp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_PyInterpreterState_GET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;interp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;small_ints&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ival&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NSMALLNEGINTS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;Py_INCREF&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;This function implements what is commonly known as the &lt;em&gt;Flyweight pattern&lt;/em&gt;, as explained here : &lt;a href=&quot;https://python-patterns.guide/gang-of-four/flyweight/&quot;&gt;https://python-patterns.guide/gang-of-four/flyweight/&lt;/a&gt;, the flyweight pattern is used in python to create at the initialisation phase all the integers in the range [-5, 256]. At the runtime, whenever you ask for a number in this range, you’ll always get the &lt;em&gt;same&lt;/em&gt; number.&lt;/p&gt;
+
+&lt;p&gt;Which can be easily checked :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;30&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;50&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# True
+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;200&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;300&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;500&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# False&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Those integers objects are stored in the interpreter state.&lt;/p&gt;
+
+&lt;p&gt;According to &lt;a href=&quot;https://tenthousandmeters.com/blog/python-behind-the-scenes-1-how-the-cpython-vm-works/&quot;&gt;https://tenthousandmeters.com/blog/python-behind-the-scenes-1-how-the-cpython-vm-works/&lt;/a&gt; :&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;An interpreter state is a group of threads along with the data specific to this group. Threads share such things as loaded modules (sys.modules), builtins (builtins.&lt;strong&gt;dict&lt;/strong&gt;) and the import system (importlib).&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Apparently flyweight integers are stored there.&lt;/p&gt;
+
+&lt;p&gt;We also use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Py_INCREF&lt;/code&gt; to increment the reference count of the returned integer, recall that reference counting is what is used by the CPython garbage collector to detect which objects to free (Well not just that, since reference counting alone doesn’t resolve circular references, but we’ll discuss the &lt;em&gt;gc&lt;/em&gt; in more details in future articles).&lt;/p&gt;
+
+&lt;h4 id=&quot;maybe_small_long&quot;&gt;maybe_small_long&lt;/h4&gt;
+
+&lt;p&gt;Straitforward function, we check a given integer is small enough to fit into an sdigit, if it’s the case we downcast it to an sdigit using the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MEDIUM_VALUE&lt;/code&gt;. After downcasting we check if the integer is in the flyweight range &lt;em&gt;[-5, 257]&lt;/em&gt;, if it’s the case we decrement the referece counting (since we don’t need two PyLong objects) and we return a reference on the already allocated number.&lt;/p&gt;
+
+&lt;h3 id=&quot;how-are-longs-created&quot;&gt;How are longs created&lt;/h3&gt;
+
+&lt;p&gt;Longs are created using the function &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PyLongObject * _PyLong_New(Py_ssize_t size)&lt;/code&gt;, size here refer to the number of digit of the target long.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;size&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Py_ssize_t&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MAX_LONG_DIGITS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;PyErr_SetString&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PyExc_OverflowError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+					&lt;span class=&quot;s&quot;&gt;&quot;too many digits in integer&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Well, looks like we can’t have an indefinely big integer, but how big can our integers be ?&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;cp&quot;&gt;#define MAX_LONG_DIGITS \
+    ((PY_SSIZE_T_MAX - offsetof(PyLongObject, ob_digit))/sizeof(digit))&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;If you don’t already know it, &lt;em&gt;offsetof&lt;/em&gt; is a &lt;em&gt;C&lt;/em&gt; function wich will basicaly return an offset of the member (ob_digit) from the structure (PyLongObject), if you recall correctly, since our struture only contains &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PyObject_VAR_HEAD&lt;/code&gt; and 	&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;digit ob_digit&lt;/code&gt;. so the offset is the memorry taken with VAR_HEAD.&lt;/p&gt;
+
+&lt;p&gt;So a integer has a maximal size of roughly Py_SSIZE_T_MAx.&lt;/p&gt;
+
+&lt;p&gt;According to this answer : &lt;a href=&quot;https://stackoverflow.com/a/42777910/14517936&quot;&gt;https://stackoverflow.com/a/42777910/14517936&lt;/a&gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Py_SSIZE_T_MAX = sys.maxsize&lt;/code&gt;, which is according to the official documentation ( &lt;a href=&quot;https://docs.python.org/3/library/sys.html#sys.maxsize&quot;&gt;https://docs.python.org/3/library/sys.html#sys.maxsize&lt;/a&gt; ) equal to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;2**31 - 1&lt;/code&gt; on 32 bits machine or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;2**63 - 1&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;2**63 - 1&lt;/code&gt; is a huge number of digits.&lt;/p&gt;
+
+&lt;p&gt;You can check this limit yourself by doing :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;sys&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;maxsize&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;If the size is fine, we allocate enough memory to store our integer :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PyObject_MALLOC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;offsetof&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PyLongObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ob_digit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;
+						 &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;sizeof&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;digit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;PyErr_NoMemory&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;As a good practice you should ALWAYS check that an allocation had correctly been performed, which may not be the case if you don’t have enough memory for example, your futur self will thank you.&lt;/p&gt;
+
+&lt;h3 id=&quot;adding-two-integers&quot;&gt;Adding two integers&lt;/h3&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;nf&quot;&gt;long_add&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PyLongObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PyLongObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PyLongObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;z&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;CHECK_BINOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Py_ABS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Py_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Py_ABS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Py_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PyLong_FromLong&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MEDIUM_VALUE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MEDIUM_VALUE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Py_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Py_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;z&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x_add&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;z&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;cm&quot;&gt;/* x_add received at least one multiple-digit int,
+                   and thus z must be a multiple-digit int.
+                   That also means z is not an element of
+                   small_ints, so negating it in-place is safe. */&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Py_REFCNT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;z&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;Py_SET_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;z&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Py_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;z&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)));&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;z&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x_sub&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Py_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;z&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x_sub&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;z&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x_add&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;z&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;First we check that the two integers are valid.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;cp&quot;&gt;#define CHECK_BINOP(v,w)                                \
+    do {                                                \
+        if (!PyLong_Check(v) || !PyLong_Check(w))       \
+            Py_RETURN_NOTIMPLEMENTED;                   \
+    } while(0)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;One curious thing you may have noticed is the :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;INSTR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Which seems exactly the same as simply :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;n&quot;&gt;INST&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The purpose of doing this is macros in C are not really smart, the &lt;em&gt;preprocessor&lt;/em&gt; will simply do a find/replace and hope for the best. The problem with this can be illustrated with the following macro :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;cp&quot;&gt;#define fct() \
+	INSTR1; \
+	INSTR2; &lt;/span&gt;&lt;span class=&quot;err&quot;&gt;\&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;But what happens if you do :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;condition&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;fct&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;INSTR3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;the preprocessor will replace this with :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;condition&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;INSTR1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;INSTR2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;INSTR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;which is not valid &lt;em&gt;C&lt;/em&gt;, since in &lt;em&gt;C&lt;/em&gt; if you omit the braces, the if body will only consists of the first instruction which is not what you would expect.&lt;/p&gt;
+
+&lt;p&gt;The do while solve this by enclosing all our instructions in one scope.&lt;/p&gt;
+
+&lt;p&gt;But why not just use :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;INSTR1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;INSTR2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;As far as i know this is simply a syntaxic choice, since writing &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MACRO();&lt;/code&gt; is more natural than &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MACRO()&lt;/code&gt; (not that in the second case we have no semicolon).&lt;/p&gt;
+
+&lt;p&gt;The rest is :&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;if both a and b are negative we return -|a + b|&lt;/li&gt;
+  &lt;li&gt;if a is negative but not b we compute b - a&lt;/li&gt;
+  &lt;li&gt;if b is negative and a is positive we compute a - b&lt;/li&gt;
+  &lt;li&gt;if both are positive we compute |a + b|&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This looks fairly complicated for a simple a + b, so why all the burden ?&lt;/p&gt;
+
+&lt;p&gt;Well recall that in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Python&lt;/code&gt; integers can be very large (2^63 digits on 64 bits machines), this is achieved by storing the integers in arrays (each element representing a digit).&lt;/p&gt;
+
+&lt;p&gt;We dive in the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;x_add&lt;/code&gt; code we see :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size_b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;carry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ob_digit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ob_digit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;z&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ob_digit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;carry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PyLong_MASK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;carry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PyLong_SHIFT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size_a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;carry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ob_digit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;z&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ob_digit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;carry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PyLong_MASK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;carry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PyLong_SHIFT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;z&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ob_digit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;carry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;And that’s it, the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;long_sub&lt;/code&gt; is fairly similar, and you can always (i encourage you to do so) check multiplication and division code.&lt;/p&gt;
+
+&lt;p&gt;We rarely stop to think about basic operations like integer operations, the longobject file shows use how complex and optimised long/integers implementation is in python.&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>Python Internals Serie : Subprocess.Popen</title>
+   <link href="/blog/2020/11/07/subprocess.html"/>
+   <updated>2020-11-07T00:00:00+01:00</updated>
+   <id>/blog/2020/11/07/subprocess</id>
+   <content type="html">&lt;p&gt;The purpose of this serie is to review some parts of the &lt;em&gt;CPython&lt;/em&gt;’s code.&lt;/p&gt;
+
+&lt;p&gt;Why ?&lt;/p&gt;
+
+&lt;p&gt;Well there are multiple reasons :&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Because we can. The project is opensource and the source code is freely available here : &lt;a href=&quot;https://github.com/python/cpython&quot;&gt;https://github.com/python/cpython&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;I strongly believe that we, as developpers, can learn a lot by studying good and clean code. And I think we can safely assume that CPython’s code, which is used practicaly everywhere, meet this crietria.&lt;/li&gt;
+  &lt;li&gt;I also think that studying python internals can make us better python programmers, for example ever wondered why changing &lt;em&gt;sys.stdout&lt;/em&gt; seems to have no effect on subprocesses ? Well at the end of this article You will know why.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;I will try to regulary realease articles  on random functions/modules/data strucutres/algorithms.&lt;/p&gt;
+
+&lt;p&gt;Starting today I don’t really have a plan or a timeline for future articles, I’ll just start with &lt;em&gt;subprocess.Popen&lt;/em&gt; and go from there.&lt;/p&gt;
+
+&lt;p&gt;I’ll try to link PEPs, articles and disscussions whenever I can.&lt;/p&gt;
+
+&lt;p&gt;DISCLAIMER : I am not a Python Core Developper, therefore a lot of claims that I’ll make here may be wrong, especially if they’re not backed by any evidence.&lt;/p&gt;
+
+&lt;p&gt;With that being said, let’s read some code !&lt;/p&gt;
+
+&lt;h2 id=&quot;wait--what-the-heck-is-cpython-&quot;&gt;Wait … What the heck is CPython ?&lt;/h2&gt;
+
+&lt;p&gt;&lt;em&gt;CPython&lt;/em&gt; is the official python implementation. You need to understand that there is a difference between python specification and a python implementation.&lt;/p&gt;
+
+&lt;p&gt;A simple example can be the sorting function :&lt;/p&gt;
+
+&lt;p&gt;The python specification specify that a valid implementation should offer a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sorted&lt;/code&gt; function which can take a list and sort it.&lt;/p&gt;
+
+&lt;p&gt;But as you may recall from your painfull algorithms course, there are multiple sorting algorithms, so which one are being used ? Well, as a lot of things, it depends on the implementation.&lt;/p&gt;
+
+&lt;p&gt;In fact you can create your own implementation and use bubble sort if you want, not a very practical choice but you can !&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;CPython&lt;/em&gt; is widely used nowadays, and a lot of its code is wrote using C, again this is an implementation detail not a specification one.&lt;/p&gt;
+
+&lt;p&gt;There are other python implementations like &lt;em&gt;PyPy&lt;/em&gt; (which use JIT compilation), or &lt;em&gt;Jython&lt;/em&gt; which is ran on a JVM machine.&lt;/p&gt;
+
+&lt;h2 id=&quot;getting-the-code&quot;&gt;Getting the code&lt;/h2&gt;
+
+&lt;p&gt;the first step is to get the cpython code. For that we gonna just clone the official repo on github :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;git clone https://github.com/python/cpython.git&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h2 id=&quot;subprocesspopen--the-class&quot;&gt;Subprocess.Popen : The class&lt;/h2&gt;
+
+&lt;p&gt;Please note that we won’t really analyze ALL the code of &lt;em&gt;Popen&lt;/em&gt;, there are way too many options and use cases to fit in this article.&lt;/p&gt;
+
+&lt;p&gt;Instead we juste gonna try to understand what happens when you execute this line of code :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;subprocess&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Popen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&apos;ls&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&apos;-l&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;We need to find a starting point, we can simply do :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;find &lt;span class=&quot;nt&quot;&gt;-name&lt;/span&gt; subprocess.py 
+
+./Lib/asyncio/subprocess.py
+./Lib/subprocess.py&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;we can safely assume that the module we’re searching for is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Lib/subprocess&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;By searching for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Popen&lt;/code&gt; in the file we find a class :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Popen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;&quot;&quot;&quot; Execute a child program in a new process.
+
+    For a complete description of the arguments see the Python documentation.
+
+    Arguments:
+      args: A string, or a sequence of program arguments.&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The first instruction is :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;_child_created&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;False&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;# Set here since __del__ checks it&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;__del__&lt;/code&gt; is basicaly a destructor method in python, this method is automatically called when the garbage collector try to free the object.&lt;/p&gt;
+
+&lt;p&gt;in CPython the garbage collector use what we call &lt;em&gt;reference counting&lt;/em&gt;, this means that if you write something like this :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; 
+
+&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# we affect a new list to a&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;In the second line we no longer have a reference to the list &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;[1, 2, 3]&lt;/code&gt;, which means that the garbage collector may delete it (or not) any time.&lt;/p&gt;
+
+&lt;p&gt;my guess, is that if you run a command like this :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;subprocess&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Popen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&apos;my command&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;since you’re not referencing the Popen object, it is a &lt;em&gt;garbage candidate&lt;/em&gt;, and the gc may try to delete it before it run. Which is not the excepected behaviour since you except the command to run even if you don’t care about what it’ll return.&lt;/p&gt;
+
+&lt;p&gt;What surprises me tough is the fact that it’s a class attribute, there is surely a reason behind it, but i’m not sure what.&lt;/p&gt;
+
+&lt;p&gt;After doing a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git blame&lt;/code&gt;, we can see that it was actually an instance attribute before this commit &lt;a href=&quot;https://github.com/python/cpython/commit/72e7761301febe026536e7a2a444269698dcf156&quot;&gt;72e7761301febe026536e7a2a444269698dcf156&lt;/a&gt;. Which refers to this issue : &lt;a href=&quot;https://bugs.python.org/issue12085&quot;&gt;issue12085&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;And the explanation is as follow :&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;If subprocess.Popen is called with a keyword argument whose name is undefined or simply too many arguments, an instance of the Popen class is created but its __init__ method call fails due to the invalid argument list. (Immediately) afterwards, the new instance is destroyed and its __del__ method is called, which checks the _child_created field that is defined by __init__; but __init__ never got the chance to execute, so the field is not defined, and __del__ raises an AttributeError, which is written out to stderr.&lt;/p&gt;
+
+  &lt;p&gt;- Oleg Oshmyan (chortos) [2011]&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;the-__init__-method&quot;&gt;The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;__init__&lt;/code&gt; method&lt;/h2&gt;
+
+&lt;p&gt;the first instruction in the init method is :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;_cleanup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;from the comment it looks like the purpose of the function is to avoid zombie processes. one thing that i like about this function is how the autor of the except explictly explain why he passes when he catches a ValueError and why it’s okay. I see a lot of developpers using the pattern &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;try: except (some exception or just Exception) pass&lt;/code&gt; instead of treating the error proply. This can be very risky as it may hide a real error that you wish you saw before wasting 2 days trying to debug a random issue.&lt;/p&gt;
+
+&lt;p&gt;After that we can see some basic parameters validation : like &lt;em&gt;is bufsize an integer&lt;/em&gt; ?&lt;/p&gt;
+
+&lt;p&gt;This is also a very good habit to have, especialy in a dynamicaly typed language like Python.&lt;/p&gt;
+
+&lt;p&gt;your code may still work with the wrong types and give you a wrong result, as an example :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;to_upper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;list_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;upper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;list_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;to_upper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&apos;aaa&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&apos;bbb&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# [&apos;AAA&apos;, &apos;BBB&apos;]
+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;to_upper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&apos;ab&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# [&apos;A&apos;, &apos;B&apos;]&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;As you can see altough it works, example 2 is clearly not what the user would expect.&lt;/p&gt;
+
+&lt;p&gt;You can also start to see that some code parts depends on the target plateforme (windows / POSIX), for the rest of this article, I’ll focus on the POSIX part.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p2cwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;c2pread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;errread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_get_handles&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stderr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;next we get the &lt;em&gt;file decriptors&lt;/em&gt; related to the optional arguments stdin/stdout/stderr.&lt;/p&gt;
+
+&lt;p&gt;A file descriptor is an abstraction managed by the process, each file descriptor points to an entry in a system wide table called &lt;em&gt;Open file table&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;In python you can do :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;my file&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fileno&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;This will return the file descriptor.&lt;/p&gt;
+
+&lt;p&gt;Based on the comments and common sense it looks like, we will not always need 6 file descriptors, but only if we choose to communicate with the child process (which is not our case for our example).&lt;/p&gt;
+
+&lt;p&gt;In our example it looks like : &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;c2pwrite&lt;/code&gt; will be the fd of the output of our script (1 if stdout) and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;p2cread&lt;/code&gt; the fd of the input of our script (0 if stdin).&lt;/p&gt;
+
+&lt;p&gt;In the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;_get_handles&lt;/code&gt; function :&lt;/p&gt;
+
+&lt;p&gt;looks like the default values (if no alternative stdout/in/err) is provided) : -1.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p2cwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;c2pread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;errread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+
+ 
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;the function seems to confirm our hypothesis :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+	&lt;span class=&quot;c1&quot;&gt;# Assuming file-like object
+&lt;/span&gt;	&lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fileno&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+	&lt;span class=&quot;c1&quot;&gt;# Assuming file-like object
+&lt;/span&gt;	&lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fileno&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;it does bug me how similar the stdin / stdout / stderr code is. I know if I had to write this code I will desperatly try to somehow refactore it in one block, I’m not sure tough if it will be a good idea, refactoring is not always a good thing.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt; &lt;span class=&quot;c1&quot;&gt;# How long to resume waiting on a child after the first ^C.
+&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# There is no right value for this.  The purpose is to be polite
+&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# yet remain good for interactive users trying to exit a tool.
+&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_sigint_wait_secs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;0.25&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;# 1/xkcd221.getRandomNumber()&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;I found the comment funny, for refecence this the xkcd comic that it refers to :&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://imgs.xkcd.com/comics/random_number.png&quot; alt=&quot;xkcd comic&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;next we call the function : &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;_execute_child&lt;/code&gt; (POSIX version in our case) :&lt;/p&gt;
+
+&lt;h2 id=&quot;_execute_child-function&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;_execute_child&lt;/code&gt; function&lt;/h2&gt;
+
+&lt;p&gt;Again some basic parameter validation.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;audit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;subprocess.Popen&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;executable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cwd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;env&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;this will send a &lt;em&gt;signal&lt;/em&gt; and subsribed functions may do things accordenly (no idea what tough).&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_USE_POSIX_SPAWN&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dirname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;executable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;os_posix_spawnp_impl1712&lt;/span&gt;                     
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;preexec_fn&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;close_fds&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pass_fds&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cwd&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;errwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errwrite&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_new_session&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;gid&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;gids&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;uid&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+	&lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;umask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+		&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_posix_spawn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;executable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;env&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;restore_signals&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+				&lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p2cwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+				&lt;span class=&quot;n&quot;&gt;c2pread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+				&lt;span class=&quot;n&quot;&gt;errread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+		&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;if the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;_USE_POSIX_SPAWN&lt;/code&gt; is true, python will try to use it to create the child process.&lt;/p&gt;
+
+&lt;p&gt;according to : &lt;a href=&quot;https://web.archive.org/web/20190922113430/https://www.oracle.com/technetwork/server-storage/solaris10/subprocess-136439.html&quot;&gt;https://web.archive.org/web/20190922113430/https://www.oracle.com/technetwork/server-storage/solaris10/subprocess-136439.html &lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;posix_spawn&lt;/code&gt; will not copy the data of the parent process, which can make the script start faster for larger processes.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt; 
+
+ &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;platform&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&apos;linux&apos;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;libc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&apos;glibc&apos;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;version&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;24&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+ 	&lt;span class=&quot;c1&quot;&gt;# glibc 2.24 has a new Linux posix_spawn implementation using vfork
+&lt;/span&gt; 	&lt;span class=&quot;c1&quot;&gt;# which properly reports errors to the parent process.
+&lt;/span&gt; 	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;that if you are on a linux plateform and the version of &lt;em&gt;glibc&lt;/em&gt; is greater than &lt;em&gt;2.24&lt;/em&gt; you ll use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;posix_spanw()&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;the 2.24 version of glibc has been released around 2016 so it’s fair to assume that if you have a recent linux distribution you ll also use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;posix_spawn()&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;If you want to check&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;ldd &lt;span class=&quot;nt&quot;&gt;--version&lt;/span&gt;
+
+ldd &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;Ubuntu GLIBC 2.31-0ubuntu9.1&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; 2.31&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;If you’re interessted you can read the disccusion (on the python bug tracker) which lead to trying to use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;posix_span&lt;/code&gt; : &lt;a href=&quot;https://bugs.python.org/issue35537&quot;&gt;https://bugs.python.org/issue35537&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;_posix_spawn-function&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;_posix_spawn&lt;/code&gt; function&lt;/h2&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;env&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;env&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;looks like our child process will inherit all our defined env variables&lt;/p&gt;
+
+&lt;p&gt;one interessting thing :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fd2&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+ &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p2cread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+ &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c2pwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+ &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;errwrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+ &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fd&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+     &lt;span class=&quot;n&quot;&gt;file_actions&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;POSIX_SPAWN_DUP2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fd2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;we iterate over the fds (in/out/err) of our child process, which are -1 by default
+as you can see if they’re different than -1, based on &lt;a href=&quot;https://linux.die.net/man/2/dup2&quot;&gt;https://linux.die.net/man/2/dup2&lt;/a&gt;, will close fd2 (standard input/output), and copy the value of fd (our new fd) place of it.&lt;/p&gt;
+
+&lt;p&gt;which mean in our case (-1) nothing happen ! so even if sys.stdout is different than 1, this won’t affect children process, and this explain why &lt;em&gt;contextredirect&lt;/em&gt; will not affect children output/error&lt;/p&gt;
+
+&lt;h2 id=&quot;osposix_spawn-function&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;os.posix_spawn&lt;/code&gt; function&lt;/h2&gt;
+
+&lt;p&gt;we open &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;os.py&lt;/code&gt; (same folder), we do a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/f posix_spawn&lt;/code&gt; : nada. There is no function in this module with this name, my guess is that the function added to the exported functions somehow, and that it may be defined in the c code.&lt;/p&gt;
+
+&lt;p&gt;by doing a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;grep -R &apos;posix_spawn&apos;&lt;/code&gt;, we seem to have a strong candidate here :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;Modules/clinic/posixmodule.c.h:    &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;posix_spawnp&quot;&lt;/span&gt;, &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;PyCFunction&lt;span class=&quot;o&quot;&gt;)(&lt;/span&gt;void&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)(&lt;/span&gt;void&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt;os_posix_spawnp, METH_FASTCALL|METH_KEYWORDS, os_posix_spawnp__doc__&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;,
+Modules/clinic/posixmodule.c.h:os_posix_spawnp_impl&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;PyObject &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;module, path_t &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;path, PyObject &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;argv,
+Modules/clinic/posixmodule.c.h:os_posix_spawnp&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;PyObject &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;module, PyObject &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;const &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;args, Py_ssize_t nargs, PyObject &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;kwnames&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;I guess that our function is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&apos;os_posix_spawnp&apos;&lt;/code&gt; :&lt;/p&gt;
+
+&lt;p&gt;Note : the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PyObject&lt;/code&gt; is a C wrapper aroud python objects, so each variable you use in python, will be presented by a PyObject in C.&lt;/p&gt;
+
+&lt;p&gt;we first see some initializations.&lt;/p&gt;
+
+&lt;p&gt;and then some … &lt;em&gt;gotos&lt;/em&gt; ? gonna admit that is kinda weird, since, well :&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://imgs.xkcd.com/comics/goto.png&quot; alt=&quot;xkcd gogo comic&quot; /&gt;.&lt;/p&gt;
+
+&lt;p&gt;After some googling it appear that it’s not a bad practice to use for this kind of situation :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;doA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;doB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cleanupA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;doC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cleanupB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;cm&quot;&gt;/* everything has succeeded */&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;nl&quot;&gt;cleanupB:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;undoB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;nl&quot;&gt;cleanupA:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;undoA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;nl&quot;&gt;exit:&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;source : &lt;a href=&quot;https://stackoverflow.com/a/245761&quot;&gt;https://stackoverflow.com/a/245761&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;gotos are apprently also appropriate for jumping out of nested loops (fun fact : this is the only accepted form of goto in java, which is called &lt;em&gt;label&lt;/em&gt;)
+after multiple conditions we go here : &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;os_posix_spawnp_impl&lt;/code&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;os_posix_spawnp_impl-function&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;os_posix_spawnp_impl&lt;/code&gt; function&lt;/h2&gt;
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;grep -R os_posix_spawnp_impl&lt;/code&gt;, Modules/posixmodule.c looks like a strong candidate.&lt;/p&gt;
+
+&lt;p&gt;if you’re intriged by this line :&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt; 
+&lt;span class=&quot;cm&quot;&gt;/*[clinic end generated code: output=7b9aaefe3031238d input=c1911043a22028da]*/&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;em&gt;clinic&lt;/em&gt; is a boilerpate code generator for CPython, we may inspect it in futur articles.&lt;/p&gt;
+
+&lt;h2 id=&quot;py_posix_spawn-function&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;py_posix_spawn&lt;/code&gt; function&lt;/h2&gt;
+&lt;hr /&gt;
+&lt;p&gt;As above, some checks and gotos.&lt;/p&gt;
+
+&lt;p&gt;then we call &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;posix_spawn&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;Which looks like our final step, since &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;posix_spawn&lt;/code&gt; is a native function in c : &lt;a href=&quot;https://man7.org/linux/man-pages/man3/posix_spawn.3.html&quot;&gt;https://man7.org/linux/man-pages/man3/posix_spawn.3.html&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;And that’s it, as you can see, this is definetly not an exaustive analysis of subprocess code. We left a lot of code/conditions. Maybe we’ll revisit them in later articles.&lt;/p&gt;
+
+&lt;p&gt;Hope you learned a thing or two in python, cpython or even general developpement best practices.&lt;/p&gt;
+
+&lt;p&gt;If you have any suggestion/request/comment feel free to contact me ! (more details here : &lt;a href=&quot;http://ykarroum/about&quot;&gt;about page&lt;/a&gt;.&lt;/p&gt;
+</content>
+ </entry>
+ 
 
 </feed>

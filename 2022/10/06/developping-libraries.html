@@ -1,0 +1,356 @@
+<p>One of the interessting aspects of working in the automatic trading industry, is that a lot of the software that you develop tend to be used by users that can code. Almost all the traders are fluent in <em>Python</em> and its related data stack (pandas, numpy, etc.).
+This results in a lot of the software being developped taking the form of libraries.</p>
+
+<p>Developping a library is quite different from developping a gui based software (like a website or a mobile app), you need to solve different challenges and the user experience is definetly not the same.</p>
+
+<p>In my current team I had the opportunity to develop two <em>python</em> libraries for quant traders. In this article I’ll share some of the lessons I learnt along the way.</p>
+
+<p>Please keep in mind that I only been in the industry for about 2 years, you should definetly take all those “tips” and “guidelines” with a grain of salt. Look at it as more of an experience of a young software developper.</p>
+
+<h2 id="what-makes-a-good-library-">What makes a good library ?</h2>
+
+<h3 id="brievety">Brievety</h3>
+
+<p>When the user is trying to solve his problem, the library “patterns” should not stand in his way, he should not need to instantiate 3 differents objects before starting doing any meaninful work.
+When you’re designing a library it’s easy to fall into the trap of designing a path of usage that you expect all your users to follow. It looks evident to you that you need to create X, Y, Z call those specific functions to setup your environement, but this can become more cumbersome than anythin else.</p>
+
+<p>One of the libraries I worked on, was a reporting library. The idea is that you could specify a datasource (portfolio and a date), and then using library blocs (metrics) you could construct tables that in turn can be used to generate a whole html report.
+In my mind the use case sounded obvious: The trader pick the metrics he wants to compute, build his report and read it on his favourite browser to come with next big strategy.</p>
+
+<p>In practice, a lot of data analysis and research was done inside jupyter notebooks, and when you’re in that environement it’s way easier to directly compute what you want on your dataframe and just print it, you didn’t need the html report. Unfortunetly you couldn’t, the library didn’t provide an easy way to print a single table, you had to create a Report object and you had to generate an html table, the user had no way to “just” print the table he just computed. I believe that this complex workflow considerably slowed the adoption of the reporting library, and limited its usage to daily reports even when this complexity wasn’t really necessary.</p>
+
+<h3 id="hackability">Hackability</h3>
+
+<p>When you develop a gui based tool, the user actions are limited by the user interface, the user can’t do an action that you didn’t implement (unless maybe you expose some form of API, like browser extensions), if there is no button to delete an item the user can’t delete the item. With libraries it’s a different story, the users can end up using your bloks in a totally different way that you imagined. A library should not have fixed goals, and should give users</p>
+
+<h3 id="efficiency">Efficiency</h3>
+
+<h2 id="designing-the-library-on-2-layers">Designing the library on 2 layers</h2>
+
+<h2 id="the-user-experience">The user experience</h2>
+
+<p>The user experience of using a library is very similar to a programming language, a lot of it is compromising how easy the library is vs how complex your code is.</p>
+
+<p>A simple exemple, if one of your functions accept a list of strings (like pathnames), should it accept a single string ? Or should it always expect a list, even if it’s for one element. What about dates ? should you accept strings or only true python dates ?</p>
+
+<p>Larry Wall, Perl creator, has the Waterbed Theory: “This is a theory which says that if you push down the complexity in one part of a language or tool, there is a compensation which increases the complexity of another part of the language or tool.”</p>
+
+<p>In my experience I find that one way to solve this, is designing your libraries in two</p>
+
+<h2 id="plan">Plan</h2>
+
+<p>the ux
+adoption
+design
+backward compatibility</p>
+
+<h2 id="wait--what-the-heck-is-cpython-">Wait … What the heck is CPython ?</h2>
+
+<p><em>CPython</em> is the official python implementation. You need to understand that there is a difference between python specification and a python implementation.</p>
+
+<p>A simple example can be the sorting function :</p>
+
+<p>The python specification specify that a valid implementation should offer a <code class="language-plaintext highlighter-rouge">sorted</code> function which can take a list and sort it.</p>
+
+<p>But as you may recall from your painfull algorithms course, there are multiple sorting algorithms, so which one are being used ? Well, as a lot of things, it depends on the implementation.</p>
+
+<p>In fact you can create your own implementation and use bubble sort if you want, not a very practical choice but you can !</p>
+
+<p><em>CPython</em> is widely used nowadays, and a lot of its code is wrote using C, again this is an implementation detail not a specification one.</p>
+
+<p>There are other python implementations like <em>PyPy</em> (which use JIT compilation), or <em>Jython</em> which is ran on a JVM machine.</p>
+
+<h2 id="getting-the-code">Getting the code</h2>
+
+<p>the first step is to get the cpython code. For that we gonna just clone the official repo on github :</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>git clone https://github.com/python/cpython.git</code></pre></figure>
+
+<h2 id="subprocesspopen--the-class">Subprocess.Popen : The class</h2>
+
+<p>Please note that we won’t really analyze ALL the code of <em>Popen</em>, there are way too many options and use cases to fit in this article.</p>
+
+<p>Instead we juste gonna try to understand what happens when you execute this line of code :</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">p</span> <span class="o">=</span> <span class="n">subprocess</span><span class="p">.</span><span class="n">Popen</span><span class="p">([</span><span class="s">'ls'</span><span class="p">,</span> <span class="s">'-l'</span><span class="p">])</span> </code></pre></figure>
+
+<p>We need to find a starting point, we can simply do :</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>find <span class="nt">-name</span> subprocess.py 
+
+./Lib/asyncio/subprocess.py
+./Lib/subprocess.py</code></pre></figure>
+
+<p>we can safely assume that the module we’re searching for is <code class="language-plaintext highlighter-rouge">Lib/subprocess</code>.</p>
+
+<p>By searching for <code class="language-plaintext highlighter-rouge">Popen</code> in the file we find a class :</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">class</span> <span class="nc">Popen</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="s">""" Execute a child program in a new process.
+
+    For a complete description of the arguments see the Python documentation.
+
+    Arguments:
+      args: A string, or a sequence of program arguments.</span></code></pre></figure>
+
+<p>The first instruction is :</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">_child_created</span> <span class="o">=</span> <span class="bp">False</span>  <span class="c1"># Set here since __del__ checks it</span></code></pre></figure>
+
+<p>the <code class="language-plaintext highlighter-rouge">__del__</code> is basicaly a destructor method in python, this method is automatically called when the garbage collector try to free the object.</p>
+
+<p>in CPython the garbage collector use what we call <em>reference counting</em>, this means that if you write something like this :</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">a</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> 
+
+<span class="n">a</span> <span class="o">=</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">]</span> <span class="c1"># we affect a new list to a</span></code></pre></figure>
+
+<p>In the second line we no longer have a reference to the list <code class="language-plaintext highlighter-rouge">[1, 2, 3]</code>, which means that the garbage collector may delete it (or not) any time.</p>
+
+<p>my guess, is that if you run a command like this :</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">subprocess</span><span class="p">.</span><span class="n">Popen</span><span class="p">([</span><span class="s">'my command'</span><span class="p">])</span></code></pre></figure>
+
+<p>since you’re not referencing the Popen object, it is a <em>garbage candidate</em>, and the gc may try to delete it before it run. Which is not the excepected behaviour since you except the command to run even if you don’t care about what it’ll return.</p>
+
+<p>What surprises me tough is the fact that it’s a class attribute, there is surely a reason behind it, but i’m not sure what.</p>
+
+<p>After doing a <code class="language-plaintext highlighter-rouge">git blame</code>, we can see that it was actually an instance attribute before this commit <a href="https://github.com/python/cpython/commit/72e7761301febe026536e7a2a444269698dcf156">72e7761301febe026536e7a2a444269698dcf156</a>. Which refers to this issue : <a href="https://bugs.python.org/issue12085">issue12085</a>.</p>
+
+<p>And the explanation is as follow :</p>
+
+<blockquote>
+  <p>If subprocess.Popen is called with a keyword argument whose name is undefined or simply too many arguments, an instance of the Popen class is created but its __init__ method call fails due to the invalid argument list. (Immediately) afterwards, the new instance is destroyed and its __del__ method is called, which checks the _child_created field that is defined by __init__; but __init__ never got the chance to execute, so the field is not defined, and __del__ raises an AttributeError, which is written out to stderr.</p>
+
+  <p>- Oleg Oshmyan (chortos) [2011]</p>
+</blockquote>
+
+<h2 id="the-__init__-method">The <code class="language-plaintext highlighter-rouge">__init__</code> method</h2>
+
+<p>the first instruction in the init method is :</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">_cleanup</span><span class="p">()</span></code></pre></figure>
+
+<p>from the comment it looks like the purpose of the function is to avoid zombie processes. one thing that i like about this function is how the autor of the except explictly explain why he passes when he catches a ValueError and why it’s okay. I see a lot of developpers using the pattern <code class="language-plaintext highlighter-rouge">try: except (some exception or just Exception) pass</code> instead of treating the error proply. This can be very risky as it may hide a real error that you wish you saw before wasting 2 days trying to debug a random issue.</p>
+
+<p>After that we can see some basic parameters validation : like <em>is bufsize an integer</em> ?</p>
+
+<p>This is also a very good habit to have, especialy in a dynamicaly typed language like Python.</p>
+
+<p>your code may still work with the wrong types and give you a wrong result, as an example :</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">to_upper</span><span class="p">(</span><span class="n">list_str</span><span class="p">):</span>
+	<span class="k">return</span> <span class="p">[</span><span class="n">s</span><span class="p">.</span><span class="n">upper</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">list_str</span><span class="p">]</span>
+
+<span class="n">to_upper</span><span class="p">([</span><span class="s">'aaa'</span><span class="p">,</span> <span class="s">'bbb'</span><span class="p">])</span> <span class="c1"># ['AAA', 'BBB']
+</span><span class="n">to_upper</span><span class="p">(</span><span class="s">'ab'</span><span class="p">)</span> <span class="c1"># ['A', 'B']</span></code></pre></figure>
+
+<p>As you can see altough it works, example 2 is clearly not what the user would expect.</p>
+
+<p>You can also start to see that some code parts depends on the target plateforme (windows / POSIX), for the rest of this article, I’ll focus on the POSIX part.</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="p">(</span><span class="n">p2cread</span><span class="p">,</span> <span class="n">p2cwrite</span><span class="p">,</span>
+<span class="n">c2pread</span><span class="p">,</span> <span class="n">c2pwrite</span><span class="p">,</span>
+<span class="n">errread</span><span class="p">,</span> <span class="n">errwrite</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_get_handles</span><span class="p">(</span><span class="n">stdin</span><span class="p">,</span> <span class="n">stdout</span><span class="p">,</span> <span class="n">stderr</span><span class="p">)</span></code></pre></figure>
+
+<p>next we get the <em>file decriptors</em> related to the optional arguments stdin/stdout/stderr.</p>
+
+<p>A file descriptor is an abstraction managed by the process, each file descriptor points to an entry in a system wide table called <em>Open file table</em>.</p>
+
+<p>In python you can do :</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="nb">open</span><span class="p">(</span><span class="s">"my file"</span><span class="p">).</span><span class="n">fileno</span><span class="p">()</span></code></pre></figure>
+
+<p>This will return the file descriptor.</p>
+
+<p>Based on the comments and common sense it looks like, we will not always need 6 file descriptors, but only if we choose to communicate with the child process (which is not our case for our example).</p>
+
+<p>In our example it looks like : <code class="language-plaintext highlighter-rouge">c2pwrite</code> will be the fd of the output of our script (1 if stdout) and <code class="language-plaintext highlighter-rouge">p2cread</code> the fd of the input of our script (0 if stdin).</p>
+
+<p>In the <code class="language-plaintext highlighter-rouge">_get_handles</code> function :</p>
+
+<p>looks like the default values (if no alternative stdout/in/err) is provided) : -1.</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">p2cread</span><span class="p">,</span> <span class="n">p2cwrite</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span>
+<span class="n">c2pread</span><span class="p">,</span> <span class="n">c2pwrite</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span>
+<span class="n">errread</span><span class="p">,</span> <span class="n">errwrite</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span>
+
+ 
+<span class="k">if</span> <span class="n">stdin</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+	<span class="k">pass</span>
+
+<span class="k">if</span> <span class="n">stdout</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+	<span class="k">pass</span></code></pre></figure>
+
+<p>the function seems to confirm our hypothesis :</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">else</span><span class="p">:</span>
+	<span class="c1"># Assuming file-like object
+</span>	<span class="n">p2cread</span> <span class="o">=</span> <span class="n">stdin</span><span class="p">.</span><span class="n">fileno</span><span class="p">()</span>
+<span class="k">else</span><span class="p">:</span>
+	<span class="c1"># Assuming file-like object
+</span>	<span class="n">c2pwrite</span> <span class="o">=</span> <span class="n">stdout</span><span class="p">.</span><span class="n">fileno</span><span class="p">()</span></code></pre></figure>
+
+<p>it does bug me how similar the stdin / stdout / stderr code is. I know if I had to write this code I will desperatly try to somehow refactore it in one block, I’m not sure tough if it will be a good idea, refactoring is not always a good thing.</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"> <span class="c1"># How long to resume waiting on a child after the first ^C.
+</span> <span class="c1"># There is no right value for this.  The purpose is to be polite
+</span> <span class="c1"># yet remain good for interactive users trying to exit a tool.
+</span> <span class="bp">self</span><span class="p">.</span><span class="n">_sigint_wait_secs</span> <span class="o">=</span> <span class="mf">0.25</span>  <span class="c1"># 1/xkcd221.getRandomNumber()</span></code></pre></figure>
+
+<p>I found the comment funny, for refecence this the xkcd comic that it refers to :</p>
+
+<p><img src="https://imgs.xkcd.com/comics/random_number.png" alt="xkcd comic" /></p>
+
+<p>next we call the function : <code class="language-plaintext highlighter-rouge">_execute_child</code> (POSIX version in our case) :</p>
+
+<h2 id="_execute_child-function"><code class="language-plaintext highlighter-rouge">_execute_child</code> function</h2>
+
+<p>Again some basic parameter validation.</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">sys</span><span class="p">.</span><span class="n">audit</span><span class="p">(</span><span class="s">"subprocess.Popen"</span><span class="p">,</span> <span class="n">executable</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">cwd</span><span class="p">,</span> <span class="n">env</span><span class="p">)</span> </code></pre></figure>
+
+<p>this will send a <em>signal</em> and subsribed functions may do things accordenly (no idea what tough).</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">if</span> <span class="p">(</span><span class="n">_USE_POSIX_SPAWN</span>
+	<span class="ow">and</span> <span class="n">os</span><span class="p">.</span><span class="n">path</span><span class="p">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">executable</span><span class="p">)</span>
+<span class="n">os_posix_spawnp_impl1712</span>                     
+	<span class="ow">and</span> <span class="n">preexec_fn</span> <span class="ow">is</span> <span class="bp">None</span>
+	<span class="ow">and</span> <span class="ow">not</span> <span class="n">close_fds</span>
+	<span class="ow">and</span> <span class="ow">not</span> <span class="n">pass_fds</span>
+	<span class="ow">and</span> <span class="n">cwd</span> <span class="ow">is</span> <span class="bp">None</span>
+	<span class="ow">and</span> <span class="p">(</span><span class="n">p2cread</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">or</span> <span class="n">p2cread</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">)</span>
+	<span class="ow">and</span> <span class="p">(</span><span class="n">c2pwrite</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">or</span> <span class="n">c2pwrite</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">)</span>
+	<span class="ow">and</span> <span class="p">(</span><span class="n">errwrite</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">or</span> <span class="n">errwrite</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">)</span>
+	<span class="ow">and</span> <span class="ow">not</span> <span class="n">start_new_session</span>
+	<span class="ow">and</span> <span class="n">gid</span> <span class="ow">is</span> <span class="bp">None</span>
+	<span class="ow">and</span> <span class="n">gids</span> <span class="ow">is</span> <span class="bp">None</span>
+	<span class="ow">and</span> <span class="n">uid</span> <span class="ow">is</span> <span class="bp">None</span>
+	<span class="ow">and</span> <span class="n">umask</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">):</span>
+		<span class="bp">self</span><span class="p">.</span><span class="n">_posix_spawn</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">executable</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">restore_signals</span><span class="p">,</span>
+				<span class="n">p2cread</span><span class="p">,</span> <span class="n">p2cwrite</span><span class="p">,</span>
+				<span class="n">c2pread</span><span class="p">,</span> <span class="n">c2pwrite</span><span class="p">,</span>
+				<span class="n">errread</span><span class="p">,</span> <span class="n">errwrite</span><span class="p">)</span>
+		<span class="k">return</span></code></pre></figure>
+
+<p>if the <code class="language-plaintext highlighter-rouge">_USE_POSIX_SPAWN</code> is true, python will try to use it to create the child process.</p>
+
+<p>according to : <a href="https://web.archive.org/web/20190922113430/https://www.oracle.com/technetwork/server-storage/solaris10/subprocess-136439.html">https://web.archive.org/web/20190922113430/https://www.oracle.com/technetwork/server-storage/solaris10/subprocess-136439.html </a></p>
+
+<p><code class="language-plaintext highlighter-rouge">posix_spawn</code> will not copy the data of the parent process, which can make the script start faster for larger processes.</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"> 
+
+ <span class="k">if</span> <span class="n">sys</span><span class="p">.</span><span class="n">platform</span> <span class="o">==</span> <span class="s">'linux'</span> <span class="ow">and</span> <span class="n">libc</span> <span class="o">==</span> <span class="s">'glibc'</span> <span class="ow">and</span> <span class="n">version</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">24</span><span class="p">):</span>
+ 	<span class="c1"># glibc 2.24 has a new Linux posix_spawn implementation using vfork
+</span> 	<span class="c1"># which properly reports errors to the parent process.
+</span> 	<span class="k">return</span> <span class="bp">True</span></code></pre></figure>
+
+<p>that if you are on a linux plateform and the version of <em>glibc</em> is greater than <em>2.24</em> you ll use <code class="language-plaintext highlighter-rouge">posix_spanw()</code>.</p>
+
+<p>the 2.24 version of glibc has been released around 2016 so it’s fair to assume that if you have a recent linux distribution you ll also use <code class="language-plaintext highlighter-rouge">posix_spawn()</code>.</p>
+
+<p>If you want to check</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>ldd <span class="nt">--version</span>
+
+ldd <span class="o">(</span>Ubuntu GLIBC 2.31-0ubuntu9.1<span class="o">)</span> 2.31</code></pre></figure>
+
+<p>If you’re interessted you can read the disccusion (on the python bug tracker) which lead to trying to use <code class="language-plaintext highlighter-rouge">posix_span</code> : <a href="https://bugs.python.org/issue35537">https://bugs.python.org/issue35537</a></p>
+
+<h2 id="_posix_spawn-function"><code class="language-plaintext highlighter-rouge">_posix_spawn</code> function</h2>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">if</span> <span class="n">env</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+	<span class="n">env</span> <span class="o">=</span> <span class="n">os</span><span class="p">.</span><span class="n">environ</span></code></pre></figure>
+
+<p>looks like our child process will inherit all our defined env variables</p>
+
+<p>one interessting thing :</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">for</span> <span class="n">fd</span><span class="p">,</span> <span class="n">fd2</span> <span class="ow">in</span> <span class="p">(</span>
+ <span class="p">(</span><span class="n">p2cread</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+ <span class="p">(</span><span class="n">c2pwrite</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+ <span class="p">(</span><span class="n">errwrite</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+<span class="p">):</span>
+ <span class="k">if</span> <span class="n">fd</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+     <span class="n">file_actions</span><span class="p">.</span><span class="n">append</span><span class="p">((</span><span class="n">os</span><span class="p">.</span><span class="n">POSIX_SPAWN_DUP2</span><span class="p">,</span> <span class="n">fd</span><span class="p">,</span> <span class="n">fd2</span><span class="p">))</span></code></pre></figure>
+
+<p>we iterate over the fds (in/out/err) of our child process, which are -1 by default
+as you can see if they’re different than -1, based on <a href="https://linux.die.net/man/2/dup2">https://linux.die.net/man/2/dup2</a>, will close fd2 (standard input/output), and copy the value of fd (our new fd) place of it.</p>
+
+<p>which mean in our case (-1) nothing happen ! so even if sys.stdout is different than 1, this won’t affect children process, and this explain why <em>contextredirect</em> will not affect children output/error</p>
+
+<h2 id="osposix_spawn-function"><code class="language-plaintext highlighter-rouge">os.posix_spawn</code> function</h2>
+
+<p>we open <code class="language-plaintext highlighter-rouge">os.py</code> (same folder), we do a <code class="language-plaintext highlighter-rouge">/f posix_spawn</code> : nada. There is no function in this module with this name, my guess is that the function added to the exported functions somehow, and that it may be defined in the c code.</p>
+
+<p>by doing a <code class="language-plaintext highlighter-rouge">grep -R 'posix_spawn'</code>, we seem to have a strong candidate here :</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">Modules/clinic/posixmodule.c.h:    <span class="o">{</span><span class="s2">"posix_spawnp"</span>, <span class="o">(</span>PyCFunction<span class="o">)(</span>void<span class="o">(</span><span class="k">*</span><span class="o">)(</span>void<span class="o">))</span>os_posix_spawnp, METH_FASTCALL|METH_KEYWORDS, os_posix_spawnp__doc__<span class="o">}</span>,
+Modules/clinic/posixmodule.c.h:os_posix_spawnp_impl<span class="o">(</span>PyObject <span class="k">*</span>module, path_t <span class="k">*</span>path, PyObject <span class="k">*</span>argv,
+Modules/clinic/posixmodule.c.h:os_posix_spawnp<span class="o">(</span>PyObject <span class="k">*</span>module, PyObject <span class="k">*</span>const <span class="k">*</span>args, Py_ssize_t nargs, PyObject <span class="k">*</span>kwnames<span class="o">)</span></code></pre></figure>
+
+<p>I guess that our function is <code class="language-plaintext highlighter-rouge">'os_posix_spawnp'</code> :</p>
+
+<p>Note : the <code class="language-plaintext highlighter-rouge">PyObject</code> is a C wrapper aroud python objects, so each variable you use in python, will be presented by a PyObject in C.</p>
+
+<p>we first see some initializations.</p>
+
+<p>and then some … <em>gotos</em> ? gonna admit that is kinda weird, since, well :</p>
+
+<p><img src="https://imgs.xkcd.com/comics/goto.png" alt="xkcd gogo comic" />.</p>
+
+<p>After some googling it appear that it’s not a bad practice to use for this kind of situation :</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">doA</span><span class="p">())</span>
+        <span class="k">goto</span> <span class="n">exit</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">doB</span><span class="p">())</span>
+        <span class="k">goto</span> <span class="n">cleanupA</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">doC</span><span class="p">())</span>
+        <span class="k">goto</span> <span class="n">cleanupB</span><span class="p">;</span>
+
+    <span class="cm">/* everything has succeeded */</span>
+    <span class="k">return</span><span class="p">;</span>
+
+<span class="nl">cleanupB:</span>
+    <span class="n">undoB</span><span class="p">();</span>
+<span class="nl">cleanupA:</span>
+    <span class="n">undoA</span><span class="p">();</span>
+<span class="nl">exit:</span>
+    <span class="k">return</span><span class="p">;</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>source : <a href="https://stackoverflow.com/a/245761">https://stackoverflow.com/a/245761</a></p>
+
+<p>gotos are apprently also appropriate for jumping out of nested loops (fun fact : this is the only accepted form of goto in java, which is called <em>label</em>)
+after multiple conditions we go here : <code class="language-plaintext highlighter-rouge">os_posix_spawnp_impl</code></p>
+
+<h2 id="os_posix_spawnp_impl-function"><code class="language-plaintext highlighter-rouge">os_posix_spawnp_impl</code> function</h2>
+<hr />
+
+<p><code class="language-plaintext highlighter-rouge">grep -R os_posix_spawnp_impl</code>, Modules/posixmodule.c looks like a strong candidate.</p>
+
+<p>if you’re intriged by this line :</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"> 
+<span class="cm">/*[clinic end generated code: output=7b9aaefe3031238d input=c1911043a22028da]*/</span></code></pre></figure>
+
+<p><em>clinic</em> is a boilerpate code generator for CPython, we may inspect it in futur articles.</p>
+
+<h2 id="py_posix_spawn-function"><code class="language-plaintext highlighter-rouge">py_posix_spawn</code> function</h2>
+<hr />
+<p>As above, some checks and gotos.</p>
+
+<p>then we call <code class="language-plaintext highlighter-rouge">posix_spawn</code></p>
+
+<p>Which looks like our final step, since <code class="language-plaintext highlighter-rouge">posix_spawn</code> is a native function in c : <a href="https://man7.org/linux/man-pages/man3/posix_spawn.3.html">https://man7.org/linux/man-pages/man3/posix_spawn.3.html</a></p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>And that’s it, as you can see, this is definetly not an exaustive analysis of subprocess code. We left a lot of code/conditions. Maybe we’ll revisit them in later articles.</p>
+
+<p>Hope you learned a thing or two in python, cpython or even general developpement best practices.</p>
+
+<p>If you have any suggestion/request/comment feel free to contact me ! (more details here : <a href="http://ykarroum/about">about page</a>.</p>
