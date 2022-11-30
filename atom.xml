@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
- <title></title>
- <link href="/atom.xml" rel="self"/>
- <link href="/"/>
- <updated>2022-11-29T21:14:58+01:00</updated>
- <id></id>
+ <title>YKarroum</title>
+ <link href="http://ykarroum.com/atom.xml" rel="self"/>
+ <link href="http://ykarroum.com/"/>
+ <updated>2022-11-30T07:45:01+01:00</updated>
+ <id>http://ykarroum.com</id>
  <author>
-   <name></name>
-   <email></email>
+   <name>Yassir Karroum</name>
+   <email>ukarroum17@gmail.com</email>
  </author>
 
  
  <entry>
    <title>Lessons learned designing libraries</title>
-   <link href="/blog/2022/10/06/developping-libraries.html"/>
+   <link href="http://ykarroum.com/2022/10/06/developping-libraries/"/>
    <updated>2022-10-06T00:00:00+02:00</updated>
-   <id>/blog/2022/10/06/developping-libraries</id>
+   <id>http://ykarroum.com/2022/10/06/developping-libraries</id>
    <content type="html">&lt;p&gt;One of the interessting aspects of working in the automatic trading industry, is that a lot of the software that you develop tend to be used by users that can code. Almost all the traders are fluent in &lt;em&gt;Python&lt;/em&gt; and its related data stack (pandas, numpy, etc.).
 This results in a lot of the software being developped taking the form of libraries.&lt;/p&gt;
 
@@ -378,9 +378,9 @@ after multiple conditions we go here : &lt;code class=&quot;language-plaintext h
  
  <entry>
    <title>The true cost of linked lists</title>
-   <link href="/blog/2022/05/30/true-cost-list.html"/>
+   <link href="http://ykarroum.com/2022/05/30/true-cost-list/"/>
    <updated>2022-05-30T00:00:00+02:00</updated>
-   <id>/blog/2022/05/30/true-cost-list</id>
+   <id>http://ykarroum.com/2022/05/30/true-cost-list</id>
    <content type="html">&lt;p&gt;Linked lists are often overused in introductory algorithmics courses, due to a heavy focus on theorical complexities. Unfortunatly, in practice, computers are complex beasts. They don’t execute instructions sequentially &lt;sup id=&quot;fnref:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt; with the same cost &lt;sup id=&quot;fnref:2&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;. This means that a data structure with faster theorical complexities does not necessarily translate to a more efficient data structure in practice.&lt;/p&gt;
 
 &lt;p&gt;In this article I’ll illutrate this by comparing the real performances of linked lists versus a contiguous vector, and I’ll show that even in some use cases where the list seems to be favored the vector is still a better choice. Of course, this doesn’t mean you should never use a linked list, but that you should be aware of its practical limitations and more informed when making the decision to use it or not.&lt;/p&gt;
@@ -828,9 +828,9 @@ Why? Well each time we insert we pay a malloc, and &lt;em&gt;malloc&lt;/em&gt; c
  
  <entry>
    <title>Toughts on testing an untested software</title>
-   <link href="/blog/2021/06/02/testing.html"/>
+   <link href="http://ykarroum.com/2021/06/02/testing/"/>
    <updated>2021-06-02T00:00:00+02:00</updated>
-   <id>/blog/2021/06/02/testing</id>
+   <id>http://ykarroum.com/2021/06/02/testing</id>
    <content type="html">&lt;p&gt;In the software engineering world testing is important, unfortunately in your career you may find yourself working on software that does not have automated tests.&lt;/p&gt;
 
 &lt;p&gt;In my own experience this can be quite frequent in research based projects. Since a fair amount of those projects starts as a POC or multiple scripts where the emphasis is more on exploration and research than producing high quality code (which is perfectly normal). The industrialisation phase, which aims to build a production ready software based on those scripts, may not always involve adding automated tests.&lt;/p&gt;
@@ -917,9 +917,9 @@ Why? Well each time we insert we pay a malloc, and &lt;em&gt;malloc&lt;/em&gt; c
  
  <entry>
    <title>Python Internals Serie : Int (Long) Object</title>
-   <link href="/blog/2021/01/10/intobject.html"/>
+   <link href="http://ykarroum.com/2021/01/10/intobject/"/>
    <updated>2021-01-10T00:00:00+01:00</updated>
-   <id>/blog/2021/01/10/intobject</id>
+   <id>http://ykarroum.com/2021/01/10/intobject</id>
    <content type="html">&lt;p&gt;In this article, we will read and discuss the implementation details of &lt;em&gt;ints&lt;/em&gt; in &lt;em&gt;CPython&lt;/em&gt;.&lt;/p&gt;
 
 &lt;p&gt;Altough using integers in python is fairly easy :&lt;/p&gt;
@@ -1193,9 +1193,9 @@ This seems to be confirmed with &lt;code class=&quot;language-plaintext highligh
  
  <entry>
    <title>Python Internals Serie : Subprocess.Popen</title>
-   <link href="/blog/2020/11/07/subprocess.html"/>
+   <link href="http://ykarroum.com/2020/11/07/subprocess/"/>
    <updated>2020-11-07T00:00:00+01:00</updated>
-   <id>/blog/2020/11/07/subprocess</id>
+   <id>http://ykarroum.com/2020/11/07/subprocess</id>
    <content type="html">&lt;p&gt;The purpose of this serie is to review some parts of the &lt;em&gt;CPython&lt;/em&gt;’s code.&lt;/p&gt;
 
 &lt;p&gt;Why ?&lt;/p&gt;
