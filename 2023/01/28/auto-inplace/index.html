@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+  <head>
+  <link href="http://gmpg.org/xfn/11" rel="profile">
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+  <title>
+    
+      Building automatic inplace in python &middot; YKarroum
+    
+  </title>
+
+  
+  <link rel="canonical" href="http://localhost:4000/2023/01/28/auto-inplace/">
+  
+
+  <link rel="stylesheet" href="http://localhost:4000/public/css/poole.css">
+  <link rel="stylesheet" href="http://localhost:4000/public/css/syntax.css">
+  <link rel="stylesheet" href="http://localhost:4000/public/css/lanyon.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Serif:400,400italic,700%7CPT+Sans:400">
+
+  <link rel="apple-touch-icon-precomposed" sizes="144x144" href="http://localhost:4000/public/apple-touch-icon-precomposed.png">
+  <link rel="shortcut icon" href="http://localhost:4000/public/favicon.ico">
+
+  <link rel="alternate" type="application/rss+xml" title="RSS" href="http://localhost:4000/atom.xml">
+
+  
+</head>
+
+
+  <body>
+
+    <!-- Target for toggling the sidebar `.sidebar-checkbox` is for regular
+     styles, `#sidebar-checkbox` for behavior. -->
+<input type="checkbox" class="sidebar-checkbox" id="sidebar-checkbox">
+
+<!-- Toggleable sidebar -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-item">
+    <p><img style="border-radius: 50%" src="/public/img/yassir_small.jpg" /> Just another personal blog, where I write about python, c++ and other stuff.</p>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a class="sidebar-nav-item" href="http://localhost:4000/">Home</a>
+
+    
+
+    
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+          <a class="sidebar-nav-item" href="http://localhost:4000/about/">About</a>
+        
+      
+    
+      
+    
+
+  </nav>
+
+  <div class="sidebar-item">
+    <p>
+      &copy; 2023. All rights reserved.
+    </p>
+  </div>
+</div>
+
+
+    <!-- Wrap is the content to shift when toggling the sidebar. We wrap the
+         content to avoid any CSS collisions with our real content. -->
+    <div class="wrap">
+      <div class="masthead">
+        <div class="container">
+          <h3 class="masthead-title">
+            <a href="/" title="Home">YKarroum</a>
+            <small></small>
+          </h3>
+        </div>
+      </div>
+
+      <div class="container content">
+        <div class="post">
+  <h1 class="post-title">Building automatic inplace in python</h1>
+  <span class="post-date">28 Jan 2023</span>
+  <p>When using data related python libraries (pandas, numpy, etc.) a lot of the functions accept an inplace parameter. By setting it to <code class="language-plaintext highlighter-rouge">True</code>, we change the source object without creating an additional copy, in some cases this can have a significant memory impact.</p>
+
+<p>In this article I’ll show that we can automatically detect some patterns where using <code class="language-plaintext highlighter-rouge">inplace=True</code> has no downsides:</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1"># There are no other references to df
+</span><span class="n">df</span> <span class="o">=</span> <span class="n">my_fct</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="c1"># should set inplace=True</span></code></pre></figure>
+
+<p>To do this we need to solve two main issues:</p>
+
+<p>First, we need to be sure that we have no other references on the source object, for example:</p>
+
+<p>This is a valid use case.</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="p">.</span><span class="n">DataFrame</span><span class="p">(...)</span>
+
+<span class="n">df</span> <span class="o">=</span> <span class="n">my_fct</span><span class="p">(</span><span class="n">df</span><span class="p">)</span></code></pre></figure>
+
+<p>This is not. As we’ll end up also changing <code class="language-plaintext highlighter-rouge">other_df</code>, which may not be intended by the user.</p>
+
+<figure class="highlight"><pre><code class="language-pyhon" data-lang="pyhon">df = pd.DataFrame(...)
+
+other_df = df
+
+df = my_fct(df)</code></pre></figure>
+
+<p>Second, we need to make sure that the same variable we get as a parameter is used as a target, example:</p>
+
+<p>This is valid.</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">df</span> <span class="o">=</span> <span class="n">my_fct</span><span class="p">(</span><span class="n">df</span><span class="p">)</span></code></pre></figure>
+
+<p>This is not, as the changes to the source df are not expected.</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">other_df</span> <span class="o">=</span> <span class="n">my_fct</span><span class="p">(</span><span class="n">df</span><span class="p">)</span></code></pre></figure>
+
+<p>In the following, we’ll use the following function as an example:</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">l</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">inplace</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="bp">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+	<span class="k">if</span> <span class="n">inplace</span><span class="p">:</span>
+		<span class="n">res</span> <span class="o">=</span> <span class="n">l</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="n">res</span> <span class="o">=</span> <span class="n">copy</span><span class="p">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
+
+	<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="p">)):</span>
+		<span class="n">res</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*=</span> <span class="mi">3</span>
+
+	<span class="k">return</span> <span class="n">l</span></code></pre></figure>
+
+<h2 id="references-counting">References counting</h2>
+
+<p>To make sure that we don’t accidentally change another object by automatically setting <code class="language-plaintext highlighter-rouge">inplace=True</code>, we need to use reference counting.</p>
+
+<p>Basically, we should only have 2 references to our source object:</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span> <span class="c1"># &lt;----- one here
+</span>	<span class="p">...</span>
+
+<span class="n">l</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1_000</span>
+
+<span class="n">l</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="c1"># &lt;----- one here</span></code></pre></figure>
+
+<p>To count the references we can use : <code class="language-plaintext highlighter-rouge">sys.getrefcount(l)</code>.</p>
+
+<p>If you try this, you may be surprised that the value is <code class="language-plaintext highlighter-rouge">4</code> not <code class="language-plaintext highlighter-rouge">2</code>.</p>
+
+<p>This is due to <code class="language-plaintext highlighter-rouge">sys.getrefcount</code> also creating a reference to its argument.
+The second additional ref count is explained here: <a href="https://stackoverflow.com/a/46146772">https://stackoverflow.com/a/46146772</a>, which looks like an implementation detail in the new way <em>CPython</em> handles arguments passing starting <em>3.6</em>.</p>
+
+<p>Our code now is:</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+	<span class="k">if</span> <span class="n">sys</span><span class="p">.</span><span class="n">getrefcount</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+		<span class="c1"># Check the second condition
+</span>		<span class="p">...</span>
+
+	<span class="c1"># the rest of f
+</span>	<span class="p">...</span></code></pre></figure>
+
+<h2 id="confirming-the-source-and-target-objects-are-the-same">Confirming the source and target objects are the same</h2>
+
+<p>To solve the second issue, we’ll:</p>
+
+<ul>
+  <li>Retrieve information on the outer frame, since we’re already in the function the outer frame will refer to the one from which we call the function.</li>
+  <li>Retrieve the code portion referring to the function call.</li>
+  <li>Using the code to build a small ast, to check that the first argument of the call has the same name as the target.</li>
+</ul>
+
+<p>To retrieve the outer frame we can use the <code class="language-plaintext highlighter-rouge">inspect</code> module:</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">frame</span> <span class="o">=</span> <span class="n">inspect</span><span class="p">.</span><span class="n">getouterframes</span><span class="p">(</span><span class="n">inspect</span><span class="p">.</span><span class="n">currentframe</span><span class="p">())[</span><span class="mi">1</span><span class="p">]</span></code></pre></figure>
+
+<p>We can get the code using <code class="language-plaintext highlighter-rouge">frame.code_context</code>.</p>
+
+<p>Once we have the code, we can use the <code class="language-plaintext highlighter-rouge">ast</code> module to check if we’re on the valid use case:</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1"># We parse the code to an ast (abstract syntax tree)
+</span><span class="n">exprs</span> <span class="o">=</span> <span class="n">ast</span><span class="p">.</span><span class="n">parse</span><span class="p">(</span><span class="n">code_context</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">strip</span><span class="p">()).</span><span class="n">body</span>
+
+<span class="c1"># We check that it's an assignement
+</span><span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">exprs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exprs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ast</span><span class="p">.</span><span class="n">Assign</span><span class="p">):</span>
+<span class="c1"># We check that user is affecting the return value somewhere
+# We also check that the second operand is a function call
+</span><span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">exprs</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">targets</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exprs</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">value</span><span class="p">,</span> <span class="n">ast</span><span class="p">.</span><span class="n">Call</span><span class="p">):</span>
+    <span class="n">lname</span> <span class="o">=</span> <span class="n">exprs</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">targets</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nb">id</span>
+    <span class="n">rname</span> <span class="o">=</span> <span class="n">exprs</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">value</span><span class="p">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nb">id</span>
+
+    <span class="c1"># If the target name and source name are the same we set inplace to True
+</span>    <span class="k">if</span> <span class="n">lname</span> <span class="o">==</span> <span class="n">rname</span><span class="p">:</span>
+	<span class="n">inplace</span> <span class="o">=</span> <span class="bp">True</span></code></pre></figure>
+
+<h2 id="wrapping-up">Wrapping up</h2>
+
+<p>We can offer an easy way to add automatic inplace to existing functions using decorators:</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">auto_inplace</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">"Something is happening before the function is called."</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sys</span><span class="p">.</span><span class="n">getrefcount</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="n">frame</span> <span class="o">=</span> <span class="n">inspect</span><span class="p">.</span><span class="n">getouterframes</span><span class="p">(</span><span class="n">inspect</span><span class="p">.</span><span class="n">currentframe</span><span class="p">())[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">code_context</span> <span class="o">=</span> <span class="n">frame</span><span class="p">.</span><span class="n">code_context</span>
+
+            <span class="n">exprs</span> <span class="o">=</span> <span class="n">ast</span><span class="p">.</span><span class="n">parse</span><span class="p">(</span><span class="n">code_context</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">strip</span><span class="p">()).</span><span class="n">body</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">exprs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exprs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ast</span><span class="p">.</span><span class="n">Assign</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">exprs</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">targets</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exprs</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">value</span><span class="p">,</span> <span class="n">ast</span><span class="p">.</span><span class="n">Call</span><span class="p">):</span>
+                    <span class="n">lname</span> <span class="o">=</span> <span class="n">exprs</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">targets</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nb">id</span>
+                    <span class="n">rname</span> <span class="o">=</span> <span class="n">exprs</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">value</span><span class="p">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nb">id</span>
+
+                    <span class="k">if</span> <span class="n">lname</span> <span class="o">==</span> <span class="n">rname</span><span class="p">:</span>
+                        <span class="n">inplace</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">inplace</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="n">inplace</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">wrapper</span></code></pre></figure>
+
+<p>This way we can just decorate our functions that offer an inplace parameter:</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="o">@</span><span class="n">auto_inplace</span>
+<span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">l</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">inplace</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="bp">True</span><span class="p">):</span>
+	<span class="p">...</span></code></pre></figure>
+
+<h2 id="limitations">Limitations</h2>
+
+<p>There are some limitations with the presented approach:</p>
+
+<p>Our decorator expects the source object to be the first argument, and expect the function to return exactly one value. This is the most common, but we can easily extend our decorator to more usages by adding parameters.</p>
+
+<p>The second limitation is that the <code class="language-plaintext highlighter-rouge">frame.code_context</code> will only return one line of the code, this may not sound like an issue but it will make it hard to detect use cases like this one:</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">df</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span>
+	<span class="n">df</span>
+<span class="p">)</span></code></pre></figure>
+
+<p>This is a little trickier to solve and may cause some missed auto inplace opportunities.</p>
+
+
+</div>
+
+
+<div class="related">
+  <h2>Related posts</h2>
+  <ul class="related-posts">
+    
+      <li>
+        <h3>
+          <a href="/2022/05/30/true-cost-list/">
+            The true cost of linked lists
+            <small>30 May 2022</small>
+          </a>
+        </h3>
+      </li>
+    
+      <li>
+        <h3>
+          <a href="/2021/06/02/testing/">
+            Toughts on testing an untested software
+            <small>02 Jun 2021</small>
+          </a>
+        </h3>
+      </li>
+    
+      <li>
+        <h3>
+          <a href="/2021/01/10/intobject/">
+            Python Internals Serie : Int (Long) Object
+            <small>10 Jan 2021</small>
+          </a>
+        </h3>
+      </li>
+    
+  </ul>
+</div>
+
+
+      </div>
+    </div>
+
+    <label for="sidebar-checkbox" class="sidebar-toggle"></label>
+
+    <script src='/public/js/script.js'></script>
+  </body>
+</html>
