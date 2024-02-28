@@ -14,18 +14,18 @@
   </title>
 
   
-  <link rel="canonical" href="http://ykarroum.com/2020/11/07/subprocess/">
+  <link rel="canonical" href="https://ykarroum.com/2020/11/07/subprocess/">
   
 
-  <link rel="stylesheet" href="http://ykarroum.com/public/css/poole.css">
-  <link rel="stylesheet" href="http://ykarroum.com/public/css/syntax.css">
-  <link rel="stylesheet" href="http://ykarroum.com/public/css/lanyon.css">
+  <link rel="stylesheet" href="https://ykarroum.com/public/css/poole.css">
+  <link rel="stylesheet" href="https://ykarroum.com/public/css/syntax.css">
+  <link rel="stylesheet" href="https://ykarroum.com/public/css/lanyon.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Serif:400,400italic,700%7CPT+Sans:400">
 
-  <link rel="apple-touch-icon-precomposed" sizes="144x144" href="http://ykarroum.com/public/apple-touch-icon-precomposed.png">
-  <link rel="shortcut icon" href="http://ykarroum.com/public/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" sizes="144x144" href="https://ykarroum.com/public/apple-touch-icon-precomposed.png">
+  <link rel="shortcut icon" href="https://ykarroum.com/public/favicon.ico">
 
-  <link rel="alternate" type="application/rss+xml" title="RSS" href="http://ykarroum.com/atom.xml">
+  <link rel="alternate" type="application/rss+xml" title="RSS" href="https://ykarroum.com/atom.xml">
 
   
 </head>
@@ -44,7 +44,7 @@
   </div>
 
   <nav class="sidebar-nav">
-    <a class="sidebar-nav-item" href="http://ykarroum.com/">Home</a>
+    <a class="sidebar-nav-item" href="https://ykarroum.com/">Home</a>
 
     
 
@@ -60,7 +60,7 @@
     
       
         
-          <a class="sidebar-nav-item" href="http://ykarroum.com/about/">About</a>
+          <a class="sidebar-nav-item" href="https://ykarroum.com/about/">About</a>
         
       
     
@@ -71,7 +71,7 @@
 
   <div class="sidebar-item">
     <p>
-      &copy; 2023. All rights reserved.
+      &copy; 2024. All rights reserved.
     </p>
   </div>
 </div>
@@ -143,7 +143,7 @@
 
 <p>Instead we juste gonna try to understand what happens when you execute this line of code :</p>
 
-<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">p</span> <span class="o">=</span> <span class="n">subprocess</span><span class="p">.</span><span class="n">Popen</span><span class="p">([</span><span class="s">'ls'</span><span class="p">,</span> <span class="s">'-l'</span><span class="p">])</span> </code></pre></figure>
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">p</span> <span class="o">=</span> <span class="n">subprocess</span><span class="p">.</span><span class="nc">Popen</span><span class="p">([</span><span class="sh">'</span><span class="s">ls</span><span class="sh">'</span><span class="p">,</span> <span class="sh">'</span><span class="s">-l</span><span class="sh">'</span><span class="p">])</span> </code></pre></figure>
 
 <p>We need to find a starting point, we can simply do :</p>
 
@@ -157,7 +157,7 @@
 <p>By searching for <code class="language-plaintext highlighter-rouge">Popen</code> in the file we find a class :</p>
 
 <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">class</span> <span class="nc">Popen</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="s">""" Execute a child program in a new process.
+    <span class="sh">"""</span><span class="s"> Execute a child program in a new process.
 
     For a complete description of the arguments see the Python documentation.
 
@@ -180,7 +180,7 @@
 
 <p>my guess, is that if you run a command like this :</p>
 
-<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">subprocess</span><span class="p">.</span><span class="n">Popen</span><span class="p">([</span><span class="s">'my command'</span><span class="p">])</span></code></pre></figure>
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">subprocess</span><span class="p">.</span><span class="nc">Popen</span><span class="p">([</span><span class="sh">'</span><span class="s">my command</span><span class="sh">'</span><span class="p">])</span></code></pre></figure>
 
 <p>since you’re not referencing the Popen object, it is a <em>garbage candidate</em>, and the gc may try to delete it before it run. Which is not the excepected behaviour since you except the command to run even if you don’t care about what it’ll return.</p>
 
@@ -200,7 +200,7 @@
 
 <p>the first instruction in the init method is :</p>
 
-<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">_cleanup</span><span class="p">()</span></code></pre></figure>
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="nf">_cleanup</span><span class="p">()</span></code></pre></figure>
 
 <p>from the comment it looks like the purpose of the function is to avoid zombie processes. one thing that i like about this function is how the autor of the except explictly explain why he passes when he catches a ValueError and why it’s okay. I see a lot of developpers using the pattern <code class="language-plaintext highlighter-rouge">try: except (some exception or just Exception) pass</code> instead of treating the error proply. This can be very risky as it may hide a real error that you wish you saw before wasting 2 days trying to debug a random issue.</p>
 
@@ -211,10 +211,10 @@
 <p>your code may still work with the wrong types and give you a wrong result, as an example :</p>
 
 <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">to_upper</span><span class="p">(</span><span class="n">list_str</span><span class="p">):</span>
-	<span class="k">return</span> <span class="p">[</span><span class="n">s</span><span class="p">.</span><span class="n">upper</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">list_str</span><span class="p">]</span>
+	<span class="k">return</span> <span class="p">[</span><span class="n">s</span><span class="p">.</span><span class="nf">upper</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">list_str</span><span class="p">]</span>
 
-<span class="n">to_upper</span><span class="p">([</span><span class="s">'aaa'</span><span class="p">,</span> <span class="s">'bbb'</span><span class="p">])</span> <span class="c1"># ['AAA', 'BBB']
-</span><span class="n">to_upper</span><span class="p">(</span><span class="s">'ab'</span><span class="p">)</span> <span class="c1"># ['A', 'B']</span></code></pre></figure>
+<span class="nf">to_upper</span><span class="p">([</span><span class="sh">'</span><span class="s">aaa</span><span class="sh">'</span><span class="p">,</span> <span class="sh">'</span><span class="s">bbb</span><span class="sh">'</span><span class="p">])</span> <span class="c1"># ['AAA', 'BBB']
+</span><span class="nf">to_upper</span><span class="p">(</span><span class="sh">'</span><span class="s">ab</span><span class="sh">'</span><span class="p">)</span> <span class="c1"># ['A', 'B']</span></code></pre></figure>
 
 <p>As you can see altough it works, example 2 is clearly not what the user would expect.</p>
 
@@ -222,7 +222,7 @@
 
 <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="p">(</span><span class="n">p2cread</span><span class="p">,</span> <span class="n">p2cwrite</span><span class="p">,</span>
 <span class="n">c2pread</span><span class="p">,</span> <span class="n">c2pwrite</span><span class="p">,</span>
-<span class="n">errread</span><span class="p">,</span> <span class="n">errwrite</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_get_handles</span><span class="p">(</span><span class="n">stdin</span><span class="p">,</span> <span class="n">stdout</span><span class="p">,</span> <span class="n">stderr</span><span class="p">)</span></code></pre></figure>
+<span class="n">errread</span><span class="p">,</span> <span class="n">errwrite</span><span class="p">)</span> <span class="o">=</span> <span class="n">self</span><span class="p">.</span><span class="nf">_get_handles</span><span class="p">(</span><span class="n">stdin</span><span class="p">,</span> <span class="n">stdout</span><span class="p">,</span> <span class="n">stderr</span><span class="p">)</span></code></pre></figure>
 
 <p>next we get the <em>file decriptors</em> related to the optional arguments stdin/stdout/stderr.</p>
 
@@ -230,7 +230,7 @@
 
 <p>In python you can do :</p>
 
-<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="nb">open</span><span class="p">(</span><span class="s">"my file"</span><span class="p">).</span><span class="n">fileno</span><span class="p">()</span></code></pre></figure>
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="nf">open</span><span class="p">(</span><span class="sh">"</span><span class="s">my file</span><span class="sh">"</span><span class="p">).</span><span class="nf">fileno</span><span class="p">()</span></code></pre></figure>
 
 <p>This will return the file descriptor.</p>
 
@@ -257,17 +257,17 @@
 
 <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">else</span><span class="p">:</span>
 	<span class="c1"># Assuming file-like object
-</span>	<span class="n">p2cread</span> <span class="o">=</span> <span class="n">stdin</span><span class="p">.</span><span class="n">fileno</span><span class="p">()</span>
+</span>	<span class="n">p2cread</span> <span class="o">=</span> <span class="n">stdin</span><span class="p">.</span><span class="nf">fileno</span><span class="p">()</span>
 <span class="k">else</span><span class="p">:</span>
 	<span class="c1"># Assuming file-like object
-</span>	<span class="n">c2pwrite</span> <span class="o">=</span> <span class="n">stdout</span><span class="p">.</span><span class="n">fileno</span><span class="p">()</span></code></pre></figure>
+</span>	<span class="n">c2pwrite</span> <span class="o">=</span> <span class="n">stdout</span><span class="p">.</span><span class="nf">fileno</span><span class="p">()</span></code></pre></figure>
 
 <p>it does bug me how similar the stdin / stdout / stderr code is. I know if I had to write this code I will desperatly try to somehow refactore it in one block, I’m not sure tough if it will be a good idea, refactoring is not always a good thing.</p>
 
 <figure class="highlight"><pre><code class="language-python" data-lang="python"> <span class="c1"># How long to resume waiting on a child after the first ^C.
 </span> <span class="c1"># There is no right value for this.  The purpose is to be polite
 </span> <span class="c1"># yet remain good for interactive users trying to exit a tool.
-</span> <span class="bp">self</span><span class="p">.</span><span class="n">_sigint_wait_secs</span> <span class="o">=</span> <span class="mf">0.25</span>  <span class="c1"># 1/xkcd221.getRandomNumber()</span></code></pre></figure>
+</span> <span class="n">self</span><span class="p">.</span><span class="n">_sigint_wait_secs</span> <span class="o">=</span> <span class="mf">0.25</span>  <span class="c1"># 1/xkcd221.getRandomNumber()</span></code></pre></figure>
 
 <p>I found the comment funny, for refecence this the xkcd comic that it refers to :</p>
 
@@ -279,12 +279,12 @@
 
 <p>Again some basic parameter validation.</p>
 
-<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">sys</span><span class="p">.</span><span class="n">audit</span><span class="p">(</span><span class="s">"subprocess.Popen"</span><span class="p">,</span> <span class="n">executable</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">cwd</span><span class="p">,</span> <span class="n">env</span><span class="p">)</span> </code></pre></figure>
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">sys</span><span class="p">.</span><span class="nf">audit</span><span class="p">(</span><span class="sh">"</span><span class="s">subprocess.Popen</span><span class="sh">"</span><span class="p">,</span> <span class="n">executable</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">cwd</span><span class="p">,</span> <span class="n">env</span><span class="p">)</span> </code></pre></figure>
 
 <p>this will send a <em>signal</em> and subsribed functions may do things accordenly (no idea what tough).</p>
 
-<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">if</span> <span class="p">(</span><span class="n">_USE_POSIX_SPAWN</span>
-	<span class="ow">and</span> <span class="n">os</span><span class="p">.</span><span class="n">path</span><span class="p">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">executable</span><span class="p">)</span>
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="nf">if </span><span class="p">(</span><span class="n">_USE_POSIX_SPAWN</span>
+	<span class="ow">and</span> <span class="n">os</span><span class="p">.</span><span class="n">path</span><span class="p">.</span><span class="nf">dirname</span><span class="p">(</span><span class="n">executable</span><span class="p">)</span>
 <span class="n">os_posix_spawnp_impl1712</span>                     
 	<span class="ow">and</span> <span class="n">preexec_fn</span> <span class="ow">is</span> <span class="bp">None</span>
 	<span class="ow">and</span> <span class="ow">not</span> <span class="n">close_fds</span>
@@ -298,7 +298,7 @@
 	<span class="ow">and</span> <span class="n">gids</span> <span class="ow">is</span> <span class="bp">None</span>
 	<span class="ow">and</span> <span class="n">uid</span> <span class="ow">is</span> <span class="bp">None</span>
 	<span class="ow">and</span> <span class="n">umask</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">):</span>
-		<span class="bp">self</span><span class="p">.</span><span class="n">_posix_spawn</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">executable</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">restore_signals</span><span class="p">,</span>
+		<span class="n">self</span><span class="p">.</span><span class="nf">_posix_spawn</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">executable</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">restore_signals</span><span class="p">,</span>
 				<span class="n">p2cread</span><span class="p">,</span> <span class="n">p2cwrite</span><span class="p">,</span>
 				<span class="n">c2pread</span><span class="p">,</span> <span class="n">c2pwrite</span><span class="p">,</span>
 				<span class="n">errread</span><span class="p">,</span> <span class="n">errwrite</span><span class="p">)</span>
@@ -312,7 +312,7 @@
 
 <figure class="highlight"><pre><code class="language-python" data-lang="python"> 
 
- <span class="k">if</span> <span class="n">sys</span><span class="p">.</span><span class="n">platform</span> <span class="o">==</span> <span class="s">'linux'</span> <span class="ow">and</span> <span class="n">libc</span> <span class="o">==</span> <span class="s">'glibc'</span> <span class="ow">and</span> <span class="n">version</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">24</span><span class="p">):</span>
+ <span class="k">if</span> <span class="n">sys</span><span class="p">.</span><span class="n">platform</span> <span class="o">==</span> <span class="sh">'</span><span class="s">linux</span><span class="sh">'</span> <span class="ow">and</span> <span class="n">libc</span> <span class="o">==</span> <span class="sh">'</span><span class="s">glibc</span><span class="sh">'</span> <span class="ow">and</span> <span class="n">version</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">24</span><span class="p">):</span>
  	<span class="c1"># glibc 2.24 has a new Linux posix_spawn implementation using vfork
 </span> 	<span class="c1"># which properly reports errors to the parent process.
 </span> 	<span class="k">return</span> <span class="bp">True</span></code></pre></figure>
@@ -344,7 +344,7 @@ ldd <span class="o">(</span>Ubuntu GLIBC 2.31-0ubuntu9.1<span class="o">)</span>
  <span class="p">(</span><span class="n">errwrite</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
 <span class="p">):</span>
  <span class="k">if</span> <span class="n">fd</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-     <span class="n">file_actions</span><span class="p">.</span><span class="n">append</span><span class="p">((</span><span class="n">os</span><span class="p">.</span><span class="n">POSIX_SPAWN_DUP2</span><span class="p">,</span> <span class="n">fd</span><span class="p">,</span> <span class="n">fd2</span><span class="p">))</span></code></pre></figure>
+     <span class="n">file_actions</span><span class="p">.</span><span class="nf">append</span><span class="p">((</span><span class="n">os</span><span class="p">.</span><span class="n">POSIX_SPAWN_DUP2</span><span class="p">,</span> <span class="n">fd</span><span class="p">,</span> <span class="n">fd2</span><span class="p">))</span></code></pre></figure>
 
 <p>we iterate over the fds (in/out/err) of our child process, which are -1 by default
 as you can see if they’re different than -1, based on <a href="https://linux.die.net/man/2/dup2">https://linux.die.net/man/2/dup2</a>, will close fd2 (standard input/output), and copy the value of fd (our new fd) place of it.</p>
